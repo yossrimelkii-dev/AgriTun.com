@@ -24,8 +24,25 @@ if [[ ! -f .env.production ]]; then
     exit 1
 fi
 
-# shellcheck disable=SC1091
-set -a; . ./.env.production; set +a
+# Safe .env reader — grabs literal value after the first `=`.
+# Does NOT source the file as shell, so values can contain $, backticks, (), etc.
+# Strips surrounding single/double quotes if present.
+get_env() {
+    local key="$1"
+    local val
+    val=$(grep -E "^${key}=" .env.production | head -n 1 | cut -d= -f2-)
+    val="${val%$'\r'}"                                 # strip CR from CRLF
+    if [[ "$val" == \"*\" && "$val" == *\" ]]; then    # trim double quotes
+        val="${val#\"}"; val="${val%\"}"
+    elif [[ "$val" == \'*\' && "$val" == *\' ]]; then  # trim single quotes
+        val="${val#\'}"; val="${val%\'}"
+    fi
+    printf '%s' "$val"
+}
+
+ATLAS_URI=$(get_env ATLAS_URI)
+MONGO_ROOT_USER=$(get_env MONGO_ROOT_USER)
+MONGO_ROOT_PASSWORD=$(get_env MONGO_ROOT_PASSWORD)
 
 : "${ATLAS_URI:?Set ATLAS_URI in .env.production (Atlas connection string)}"
 : "${MONGO_ROOT_USER:?Set MONGO_ROOT_USER in .env.production}"

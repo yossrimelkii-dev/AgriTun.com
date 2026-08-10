@@ -16,10 +16,24 @@ if [[ -z "$ARCHIVE" || ! -f "$ARCHIVE" ]]; then
 fi
 
 cd "$(dirname "$0")/.."
-# shellcheck disable=SC1091
-set -a; . ./.env.production; set +a
-: "${MONGO_ROOT_USER:?}"
-: "${MONGO_ROOT_PASSWORD:?}"
+
+# Safe .env reader — does not source the file as shell.
+get_env() {
+    local val
+    val=$(grep -E "^${1}=" .env.production | head -n 1 | cut -d= -f2-)
+    val="${val%$'\r'}"
+    if [[ "$val" == \"*\" && "$val" == *\" ]]; then
+        val="${val#\"}"; val="${val%\"}"
+    elif [[ "$val" == \'*\' && "$val" == *\' ]]; then
+        val="${val#\'}"; val="${val%\'}"
+    fi
+    printf '%s' "$val"
+}
+
+MONGO_ROOT_USER=$(get_env MONGO_ROOT_USER)
+MONGO_ROOT_PASSWORD=$(get_env MONGO_ROOT_PASSWORD)
+: "${MONGO_ROOT_USER:?Set MONGO_ROOT_USER in .env.production}"
+: "${MONGO_ROOT_PASSWORD:?Set MONGO_ROOT_PASSWORD in .env.production}"
 
 echo "⚠  This will DROP the current 'tunagri' database and restore from:"
 echo "     $ARCHIVE"
