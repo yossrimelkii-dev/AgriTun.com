@@ -1,0 +1,20 @@
+{
+  "name": "tunagri",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm -r --parallel --if-present dev",
+    "dev:turbo": "turbo dev",
+    "build": "pnpm -r --if-present build",
+    "build:turbo": "turbo build",
+    "lint": "turbo lint",
+    "db:seed": "turbo db:seed --filter=@agrimed/db",
+    "db:migrate:animaux": "pnpm --filter @agrimed/db db:migrate:animaux",
+    "db:migrate:animaux:dry": "pnpm --filter @agrimed/db db:migrate:animaux:dry",
+    "clean": "turbo clean"
+  },
+  "packageManager": "pnpm@9.12.0",
+  "devDependencies": {
+    "turbo": "^2.9.6"
+  }
+}

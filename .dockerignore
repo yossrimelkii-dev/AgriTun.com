@@ -1,0 +1,42 @@
+# VCS
+.git
+.gitignore
+.github
+
+# Node
+node_modules
+**/node_modules
+
+# Build artifacts
+**/.next
+**/dist
+**/.turbo
+**/coverage
+**/*.log
+build.log
+
+# Local env / secrets — NEVER copy these into the image
+.env
+.env.*
+!.env.example
+!.env.production.example
+
+# Editor / OS
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# Test/tmp
+**/*.test.ts
+**/*.spec.ts
+**/tmp
+**/temp
+
+# Deploy files that are needed on host, not in image
+docker-compose*.yml
+Caddyfile
+scripts
+DEPLOY.md
+README.md
+PLATFORM_DOCUMENTATION.md

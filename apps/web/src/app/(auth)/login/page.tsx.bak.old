@@ -1,0 +1,333 @@
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { loginSchema, type LoginInput } from '@agrimed/types';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+
+export default function LoginPage() {
+  const router = useRouter();
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const { register, handleSubmit, formState: { errors } } = useForm<LoginInput>({
+    resolver: zodResolver(loginSchema),
+  });
+
+  async function onSubmit(data: LoginInput) {
+    setLoading(true);
+    setError('');
+
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      const result = await res.json();
+
+      if (!res.ok) {
+        setError(result.error || 'Erreur de connexion');
+        return;
+      }
+
+      // Redirect based on role
+      if (result.user.role === 'SUPPLIER') {
+        router.push(result.user.supplierId ? '/dashboard/overview' : '/dashboard/onboarding');
+      } else if (result.user.role === 'ADMIN') {
+        router.push('/admin');
+      } else {
+        router.push('/');
+      }
+    } catch {
+      setError('Erreur réseau');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-muted/50 px-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="space-y-1 text-center">
+          <CardTitle className="text-2xl font-bold">
+            <span className="text-primary">Agri</span>
+            <span className="text-secondary">Med</span> Pro
+          </CardTitle>
+          <CardDescription>Connectez-vous à votre compte</CardDescription>
+        </CardHeader>
+
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <CardContent className="space-y-4">
+            {error && (
+              <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md">
+                {error}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="nom@example.com"
+                {...register('email')}
+              />
+              {errors.email && (
+                <p className="text-xs text-destructive">{errors.email.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="password">Mot de passe</Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="••••••••"
+                {...register('password')}
+              />
+              {errors.password && (
+                <p className="text-xs text-destructive">{errors.password.message}</p>
+              )}
+            </div>
+          </CardContent>
+
+          <CardFooter className="flex flex-col gap-4">
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? 'Connexion...' : 'Se connecter'}
+            </Button>
+            <p className="text-sm text-muted-foreground text-center">
+              Pas encore de compte ?{' '}
+              <Link href="/register" className="text-primary hover:underline">
+                Créer un compte
+              </Link>
+            </p>
+          </CardFooter>
+        </form>
+      </Card>
+    </div>
+  );
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+}  }    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });    console.error('Settings update error:', error);    }      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });    if (error?.message === 'UNAUTHORIZED' || error?.message === 'SUPPLIER_PROFILE_REQUIRED') {  } catch (error: any) {    return NextResponse.json({ supplier });    ).lean();      { new: true, runValidators: true }      { $set: updates },      session.supplierId,    const supplier = await Supplier.findByIdAndUpdate(    }      return NextResponse.json({ error: 'Aucune mise à jour' }, { status: 400 });    if (Object.keys(updates).length === 0) {    }        }));          year: c.year ? parseInt(c.year) : undefined,          issuer: c.issuer?.trim() || '',          name: c.name.trim(),        .map((c: any) => ({        .filter((c: any) => c?.name?.trim())      updates.certifications = body.certifications    if (Array.isArray(body.certifications)) {    // Certifications    }      if (typeof body.settings.showPhonePublicly === 'boolean') updates['settings.showPhonePublicly'] = body.settings.showPhonePublicly;      if (typeof body.settings.autoConfirmOrders === 'boolean') updates['settings.autoConfirmOrders'] = body.settings.autoConfirmOrders;      if (typeof body.settings.notifyLowStock === 'boolean') updates['settings.notifyLowStock'] = body.settings.notifyLowStock;      if (typeof body.settings.notifyNewOrder === 'boolean') updates['settings.notifyNewOrder'] = body.settings.notifyNewOrder;    if (body.settings && typeof body.settings === 'object') {    // Notification settings    }      if (typeof body.socialLinks.facebook === 'string') updates['socialLinks.facebook'] = body.socialLinks.facebook.trim();      if (typeof body.socialLinks.linkedin === 'string') updates['socialLinks.linkedin'] = body.socialLinks.linkedin.trim();      if (typeof body.socialLinks.website === 'string') updates['socialLinks.website'] = body.socialLinks.website.trim();    if (body.socialLinks && typeof body.socialLinks === 'object') {    // Social links    }      updates['addresses.0.country'] = 'DZ';      updates['addresses.0.isHeadquarters'] = true;      updates['addresses.0.postalCode'] = addr.postalCode?.trim() || '';      updates['addresses.0.addressLine'] = addr.addressLine?.trim() || '';      updates['addresses.0.wilaya'] = addr.wilaya?.trim() || '';      updates['addresses.0.city'] = addr.city?.trim() || '';      const addr = body.address;    if (body.address && typeof body.address === 'object') {    // Address (update first/headquarters address)    }      updates.sector = body.sector;    if (body.sector && ['MEDICAL', 'AGRICULTURAL', 'BOTH'].includes(body.sector)) {    }      updates.description = body.description.trim();    if (typeof body.description === 'string') {    }      updates.companyName = body.companyName.trim();    if (typeof body.companyName === 'string' && body.companyName.trim()) {    // Company info    const updates: Record<string, any> = {};    const body = await req.json();    await connectDB();    const session = await requireSupplier();  try {export async function PATCH(req: NextRequest) {// PATCH /api/dashboard/settings — update supplier profile & settings}  }    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });    }      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });    if (error?.message === 'UNAUTHORIZED' || error?.message === 'SUPPLIER_PROFILE_REQUIRED') {  } catch (error: any) {    return NextResponse.json({ supplier });    }      return NextResponse.json({ error: 'Profil introuvable' }, { status: 404 });    if (!supplier) {    const supplier = await Supplier.findById(session.supplierId).lean();    await connectDB();    const session = await requireSupplier();  try {export async function GET() {// GET /api/dashboard/settings — get supplier settingsexport const dynamic = 'force-dynamic';import { requireSupplier } from '@/lib/auth/session';import { Supplier } from '@agrimed/db/models';import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { loginSchema, type LoginInput } from '@agrimed/types';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+
+export default function LoginPage() {
+  const router = useRouter();
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const { register, handleSubmit, formState: { errors } } = useForm<LoginInput>({
+    resolver: zodResolver(loginSchema),
+  });
+
+  async function onSubmit(data: LoginInput) {
+    setLoading(true);
+    setError('');
+
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      const result = await res.json();
+
+      if (!res.ok) {
+        setError(result.error || 'Erreur de connexion');
+        return;
+      }
+
+      // Redirect based on role
+      if (result.user.role === 'SUPPLIER') {
+        router.push(result.user.supplierId ? '/dashboard/overview' : '/dashboard/onboarding');
+      } else if (result.user.role === 'ADMIN') {
+        router.push('/admin');
+      } else {
+        router.push('/');
+      }
+    } catch {
+      setError('Erreur réseau');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-muted/50 px-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="space-y-1 text-center">
+          <CardTitle className="text-2xl font-bold">
+            <span className="text-primary">Agri</span>
+            <span className="text-secondary">Med</span> Pro
+          </CardTitle>
+          <CardDescription>Connectez-vous à votre compte</CardDescription>
+        </CardHeader>
+
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <CardContent className="space-y-4">
+            {error && (
+              <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md">
+                {error}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="nom@example.com"
+                {...register('email')}
+              />
+              {errors.email && (
+                <p className="text-xs text-destructive">{errors.email.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="password">Mot de passe</Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="••••••••"
+                {...register('password')}
+              />
+              {errors.password && (
+                <p className="text-xs text-destructive">{errors.password.message}</p>
+              )}
+            </div>
+          </CardContent>
+
+          <CardFooter className="flex flex-col gap-4">
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? 'Connexion...' : 'Se connecter'}
+            </Button>
+            <p className="text-sm text-muted-foreground text-center">
+              Pas encore de compte ?{' '}
+              <Link href="/register" className="text-primary hover:underline">
+                Créer un compte
+              </Link>
+            </p>
+          </CardFooter>
+        </form>
+      </Card>
+    </div>
+  );
+}

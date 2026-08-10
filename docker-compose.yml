@@ -1,0 +1,32 @@
+version: '3.8'
+services:
+  mongodb:
+    image: mongo:7
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo_data:/data/db
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+    restart: unless-stopped
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.6
+    ports:
+      - '7700:7700'
+    environment:
+      MEILI_MASTER_KEY: 'local-dev-master-key'
+    volumes:
+      - meili_data:/meili_data
+    restart: unless-stopped
+
+volumes:
+  mongo_data:
+  meili_data:

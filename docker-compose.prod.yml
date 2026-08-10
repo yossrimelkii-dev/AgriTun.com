@@ -1,0 +1,106 @@
+# Production stack for VPS deployment.
+# Bring up with:   docker compose -f docker-compose.prod.yml up -d --build
+# Bring down with: docker compose -f docker-compose.prod.yml down
+
+services:
+  # ── MongoDB (local, replaces Atlas) ─────────────────────────
+  mongodb:
+    image: mongo:7
+    container_name: tunagri-mongo
+    restart: unless-stopped
+    # NOT exposed to the host: only reachable from the internal Docker network.
+    # This is critical for security — a public Mongo on the internet gets scanned
+    # and brute-forced within hours.
+    expose:
+      - "27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: tunagri
+    volumes:
+      - mongo_data:/data/db
+      - mongo_config:/data/configdb
+    # Keep the WiredTiger cache small on modest VPS instances (default is
+    # 50% of RAM). Adjust to `--wiredTigerCacheSizeGB 1` on a 2GB box, higher
+    # on bigger ones.
+    command: ["--wiredTigerCacheSizeGB", "0.5", "--bind_ip_all"]
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - tunagri-net
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ── Next.js app ─────────────────────────────────────────────
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: tunagri-web:latest
+    container_name: tunagri-web
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    # Not exposed to the host — Caddy talks to it over the internal network.
+    expose:
+      - "3000"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - tunagri-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ── Caddy reverse proxy (auto-HTTPS via Let's Encrypt) ─────
+  caddy:
+    image: caddy:2-alpine
+    container_name: tunagri-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"    # HTTP/3
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      DOMAIN: ${DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL}
+    depends_on:
+      web:
+        condition: service_healthy
+    networks:
+      - tunagri-net
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  tunagri-net:
+    driver: bridge
+
+volumes:
+  mongo_data:
+  mongo_config:
+  caddy_data:
+  caddy_config:
