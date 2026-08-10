@@ -37,10 +37,10 @@ if [[ $DO_PULL -eq 1 ]]; then
 fi
 
 echo "→ Building images (this can take 3-5 min on first run)..."
-docker compose -f "$COMPOSE_FILE" build --pull
+docker compose --env-file .env.production -f "$COMPOSE_FILE" build --pull
 
 echo "→ Rolling to the new image with zero interruption..."
-docker compose -f "$COMPOSE_FILE" up -d --remove-orphans
+docker compose --env-file .env.production -f "$COMPOSE_FILE" up -d --remove-orphans
 
 echo "→ Pruning old images..."
 docker image prune -f >/dev/null
@@ -49,12 +49,12 @@ echo "→ Waiting for health check..."
 for i in {1..30}; do
     if docker inspect --format '{{.State.Health.Status}}' tunagri-web 2>/dev/null | grep -q healthy; then
         echo "✓ Deployed. tunagri-web is healthy."
-        docker compose -f "$COMPOSE_FILE" ps
+        docker compose --env-file .env.production -f "$COMPOSE_FILE" ps
         exit 0
     fi
     sleep 2
 done
 
 echo "✗ Container did not become healthy in 60s. Recent logs:" >&2
-docker compose -f "$COMPOSE_FILE" logs --tail=80 web >&2
+docker compose --env-file .env.production -f "$COMPOSE_FILE" logs --tail=80 web >&2
 exit 1
