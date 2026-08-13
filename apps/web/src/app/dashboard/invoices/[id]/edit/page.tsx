@@ -31,6 +31,7 @@ function toFormValues(inv: any): InvoiceFormValues {
 
   return {
     status: inv?.status || defaults.status,
+    paymentMethod: inv?.paymentMethod || '',
     issuedAt: toDateInput(inv?.issuedAt) || defaults.issuedAt,
     dueAt: toDateInput(inv?.dueAt) || defaults.dueAt,
     tvaRate: String(inv?.totals?.tvaRate ?? defaults.tvaRate),

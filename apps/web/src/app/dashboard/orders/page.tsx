@@ -94,6 +94,30 @@ export default function DashboardOrdersPage() {
     },
   });
 
+  const generateQuote = useMutation({
+    mutationFn: async (orderId: string) => {
+      const res = await fetch('/api/quotes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to generate quote');
+      return json;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['dashboard-orders'] });
+      toast({
+        title: `${t('dashboardOrders.quoteGenerated')}: ${data.quote?.quoteNumber || ''} ✓`,
+      });
+      // Optimistic redirect to view/edit the new quote.
+      if (data.quote?._id) window.location.href = `/quote/${data.quote._id}`;
+    },
+    onError: (error: any) => {
+      toast({ title: error.message || t('dashboardOrders.quoteError') });
+    },
+  });
+
   const orders: Order[] = data?.items || data?.orders || [];
 
   const getNextStatus = (current: string) => {
@@ -167,6 +191,17 @@ export default function DashboardOrdersPage() {
                             disabled={updateStatus.isPending}
                           >
                             → {STATUS_LABELS[nextStatus]?.label}
+                          </Button>
+                        )}
+                        {order.status !== 'PENDING' && order.status !== 'CANCELLED' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-secondary border-secondary/30 hover:bg-secondary/10"
+                            onClick={() => generateQuote.mutate(order._id)}
+                            disabled={generateQuote.isPending}
+                          >
+                            📝 {t('dashboardOrders.generateQuote')}
                           </Button>
                         )}
                         {!order.invoiceId && order.status !== 'PENDING' && (

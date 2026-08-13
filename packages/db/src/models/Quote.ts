@@ -1,16 +1,14 @@
 import mongoose, { Schema, type Types } from 'mongoose';
 
-export interface IInvoice {
-  invoiceNumber: string;
+export interface IQuote {
+  quoteNumber: string;
   orderId?: Types.ObjectId;
-  quoteId?: Types.ObjectId;
   supplierId: Types.ObjectId;
   buyerId?: Types.ObjectId;
-  status: 'DRAFT' | 'SENT' | 'PAID' | 'OVERDUE' | 'CANCELLED';
-  paymentMethod?: 'CASH' | 'CHECK' | 'TRANSFER';
+  status: 'DRAFT' | 'SENT' | 'ACCEPTED' | 'REJECTED' | 'EXPIRED' | 'CONVERTED';
   issuedAt: Date;
-  dueAt?: Date;
-  paidAt?: Date;
+  validUntil?: Date;
+  convertedInvoiceId?: Types.ObjectId;
   supplierInfo: {
     name?: string;
     address?: string;
@@ -44,31 +42,25 @@ export interface IInvoice {
     totalTTC: number;
     currency: string;
   };
-  pdfUrl?: string;
   notes?: string;
   createdAt: Date;
   updatedAt: Date;
 }
 
-const InvoiceSchema = new Schema<IInvoice>(
+const QuoteSchema = new Schema<IQuote>(
   {
-    invoiceNumber: { type: String, required: true, unique: true },
+    quoteNumber: { type: String, required: true, unique: true },
     orderId: { type: Schema.Types.ObjectId, ref: 'Order' },
-    quoteId: { type: Schema.Types.ObjectId, ref: 'Quote' },
     supplierId: { type: Schema.Types.ObjectId, ref: 'Supplier', required: true },
     buyerId: { type: Schema.Types.ObjectId, ref: 'User' },
     status: {
       type: String,
-      enum: ['DRAFT', 'SENT', 'PAID', 'OVERDUE', 'CANCELLED'],
+      enum: ['DRAFT', 'SENT', 'ACCEPTED', 'REJECTED', 'EXPIRED', 'CONVERTED'],
       default: 'DRAFT',
     },
-    paymentMethod: {
-      type: String,
-      enum: ['CASH', 'CHECK', 'TRANSFER'],
-    },
     issuedAt: { type: Date, default: Date.now },
-    dueAt: Date,
-    paidAt: Date,
+    validUntil: Date,
+    convertedInvoiceId: { type: Schema.Types.ObjectId, ref: 'Invoice' },
     supplierInfo: {
       name: String,
       address: String,
@@ -99,20 +91,19 @@ const InvoiceSchema = new Schema<IInvoice>(
     ],
     totals: {
       subtotalHT: Number,
-      tvaRate: { type: Number, default: 0.19 },
+      tvaRate: { type: Number, default: 19 },
       tvaAmount: Number,
       totalTTC: Number,
       currency: { type: String, default: 'TND' },
     },
-    pdfUrl: String,
     notes: String,
   },
   { timestamps: true }
 );
 
-InvoiceSchema.index({ supplierId: 1, status: 1 });
-InvoiceSchema.index({ buyerId: 1 });
-InvoiceSchema.index({ dueAt: 1, status: 1 });
+QuoteSchema.index({ supplierId: 1, status: 1 });
+QuoteSchema.index({ buyerId: 1 });
+QuoteSchema.index({ orderId: 1 });
 
-export const Invoice =
-  (mongoose.models.Invoice || mongoose.model<IInvoice>('Invoice', InvoiceSchema)) as mongoose.Model<IInvoice>;
+export const Quote =
+  (mongoose.models.Quote || mongoose.model<IQuote>('Quote', QuoteSchema)) as mongoose.Model<IQuote>;

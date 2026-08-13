@@ -4,6 +4,7 @@ export { Category, type ICategory, type IAncestor } from './Category.js';
 export { Product, type IProduct, type IProductVariant } from './Product.js';
 export { Order, type IOrder, type IOrderItem, type OrderStatus } from './Order.js';
 export { Invoice, type IInvoice } from './Invoice.js';
+export { Quote, type IQuote } from './Quote.js';
 export { StockMovement, type IStockMovement, type MovementType } from './StockMovement.js';
 export { Review, type IReview } from './Review.js';
 export { Promotion, type IPromotion } from './Promotion.js';

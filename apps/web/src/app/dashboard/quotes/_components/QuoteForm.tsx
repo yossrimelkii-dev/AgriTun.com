@@ -9,19 +9,18 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useI18n } from '@/components/providers/locale-provider';
 
-export type InvoiceFormMode = 'create' | 'edit';
+export type QuoteFormMode = 'create' | 'edit';
 
-export interface InvoiceFormLineItem {
+export interface QuoteFormLineItem {
   description: string;
   qty: string;
   unitPrice: string;
 }
 
-export interface InvoiceFormValues {
+export interface QuoteFormValues {
   status: string;
-  paymentMethod: string;
   issuedAt: string;
-  dueAt: string;
+  validUntil: string;
   tvaRate: string;
   currency: string;
   notes: string;
@@ -43,48 +42,47 @@ export interface InvoiceFormValues {
     logo: string;
     website: string;
   };
-  lineItems: InvoiceFormLineItem[];
+  lineItems: QuoteFormLineItem[];
 }
 
-export function emptyLineItem(): InvoiceFormLineItem {
+export function emptyQuoteLineItem(): QuoteFormLineItem {
   return { description: '', qty: '1', unitPrice: '' };
 }
 
-export function defaultInvoiceValues(): InvoiceFormValues {
+export function defaultQuoteValues(): QuoteFormValues {
   const now = new Date();
-  const due = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+  const valid = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
   const iso = (d: Date) => d.toISOString().slice(0, 10);
   return {
     status: 'DRAFT',
-    paymentMethod: '',
     issuedAt: iso(now),
-    dueAt: iso(due),
+    validUntil: iso(valid),
     tvaRate: '19',
     currency: 'TND',
     notes: '',
     buyerInfo: { name: '', address: '', city: '', taxId: '', phone: '', email: '' },
     supplierInfo: { name: '', address: '', city: '', taxId: '', phone: '', email: '', logo: '', website: '' },
-    lineItems: [emptyLineItem()],
+    lineItems: [emptyQuoteLineItem()],
   };
 }
 
-const STATUSES = ['DRAFT', 'SENT', 'PAID', 'OVERDUE', 'CANCELLED'] as const;
+const STATUSES = ['DRAFT', 'SENT', 'ACCEPTED', 'REJECTED', 'EXPIRED'] as const;
 
 interface Props {
-  mode: InvoiceFormMode;
-  initialValues: InvoiceFormValues;
-  invoiceId?: string;
-  invoiceNumber?: string;
+  mode: QuoteFormMode;
+  initialValues: QuoteFormValues;
+  quoteId?: string;
+  quoteNumber?: string;
   lineItemsLocked?: boolean;
   lineItemsLockedReason?: string;
-  onSaved?: (invoiceId: string) => void;
+  onSaved?: (quoteId: string) => void;
 }
 
-export default function InvoiceForm({
+export default function QuoteForm({
   mode,
   initialValues,
-  invoiceId,
-  invoiceNumber,
+  quoteId,
+  quoteNumber,
   lineItemsLocked = false,
   lineItemsLockedReason,
   onSaved,
@@ -94,11 +92,56 @@ export default function InvoiceForm({
   const { t, locale } = useI18n();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const [values, setValues] = useState<InvoiceFormValues>(initialValues);
+  const [values, setValues] = useState<QuoteFormValues>(initialValues);
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [refreshingSupplier, setRefreshingSupplier] = useState(false);
   const [error, setError] = useState('');
+
+  const numberLocale = locale === 'ar' ? 'ar-TN' : locale === 'en' ? 'en-US' : 'fr-TN';
+
+  const totals = useMemo(() => {
+    const subtotalHT = values.lineItems.reduce((sum, li) => {
+      return sum + (parseFloat(li.qty) || 0) * (parseFloat(li.unitPrice) || 0);
+    }, 0);
+    const rate = Math.max(0, Math.min(100, parseFloat(values.tvaRate) || 0));
+    const tva = subtotalHT * (rate / 100);
+    return {
+      subtotalHT: Math.round(subtotalHT * 100) / 100,
+      tvaAmount: Math.round(tva * 100) / 100,
+      totalTTC: Math.round((subtotalHT + tva) * 100) / 100,
+    };
+  }, [values.lineItems, values.tvaRate]);
+
+  const formatPrice = (n: number) =>
+    new Intl.NumberFormat(numberLocale, {
+      style: 'currency',
+      currency: values.currency || 'TND',
+      maximumFractionDigits: 2,
+    }).format(n);
+
+  function updateBuyer<K extends keyof QuoteFormValues['buyerInfo']>(k: K, v: string) {
+    setValues((p) => ({ ...p, buyerInfo: { ...p.buyerInfo, [k]: v } }));
+  }
+  function updateSupplier<K extends keyof QuoteFormValues['supplierInfo']>(k: K, v: string) {
+    setValues((p) => ({ ...p, supplierInfo: { ...p.supplierInfo, [k]: v } }));
+  }
+  function updateLineItem(i: number, k: keyof QuoteFormLineItem, v: string) {
+    setValues((p) => {
+      const next = [...p.lineItems];
+      next[i] = { ...next[i], [k]: v };
+      return { ...p, lineItems: next };
+    });
+  }
+  function addLineItem() {
+    setValues((p) => ({ ...p, lineItems: [...p.lineItems, emptyQuoteLineItem()] }));
+  }
+  function removeLineItem(i: number) {
+    setValues((p) => ({
+      ...p,
+      lineItems: p.lineItems.length > 1 ? p.lineItems.filter((_, ix) => ix !== i) : p.lineItems,
+    }));
+  }
 
   async function pullSupplierProfile() {
     setRefreshingSupplier(true);
@@ -106,10 +149,7 @@ export default function InvoiceForm({
       const res = await fetch('/api/supplier/me');
       const json = await res.json();
       const s = json?.supplier;
-      if (!s) {
-        toast({ title: t('invoiceForm.supplierProfileMissing') });
-        return;
-      }
+      if (!s) return toast({ title: t('invoiceForm.supplierProfileMissing') });
       setValues((prev) => ({
         ...prev,
         supplierInfo: {
@@ -131,72 +171,14 @@ export default function InvoiceForm({
     }
   }
 
-  const numberLocale = locale === 'ar' ? 'ar-TN' : locale === 'en' ? 'en-US' : 'fr-TN';
-
-  const totals = useMemo(() => {
-    const subtotalHT = values.lineItems.reduce((sum, li) => {
-      const qty = parseFloat(li.qty) || 0;
-      const price = parseFloat(li.unitPrice) || 0;
-      return sum + qty * price;
-    }, 0);
-    const rate = Math.max(0, Math.min(100, parseFloat(values.tvaRate) || 0));
-    const tva = subtotalHT * (rate / 100);
-    const total = subtotalHT + tva;
-    return {
-      subtotalHT: Math.round(subtotalHT * 100) / 100,
-      tvaAmount: Math.round(tva * 100) / 100,
-      totalTTC: Math.round(total * 100) / 100,
-    };
-  }, [values.lineItems, values.tvaRate]);
-
-  const formatPrice = (n: number) =>
-    new Intl.NumberFormat(numberLocale, {
-      style: 'currency',
-      currency: values.currency || 'TND',
-      maximumFractionDigits: 2,
-    }).format(n);
-
-  function updateBuyer<K extends keyof InvoiceFormValues['buyerInfo']>(
-    key: K,
-    v: string
-  ) {
-    setValues((prev) => ({ ...prev, buyerInfo: { ...prev.buyerInfo, [key]: v } }));
-  }
-
-  function updateSupplier<K extends keyof InvoiceFormValues['supplierInfo']>(
-    key: K,
-    v: string
-  ) {
-    setValues((prev) => ({ ...prev, supplierInfo: { ...prev.supplierInfo, [key]: v } }));
-  }
-
-  function updateLineItem(index: number, key: keyof InvoiceFormLineItem, v: string) {
-    setValues((prev) => {
-      const next = [...prev.lineItems];
-      next[index] = { ...next[index], [key]: v };
-      return { ...prev, lineItems: next };
-    });
-  }
-
-  function addLineItem() {
-    setValues((prev) => ({ ...prev, lineItems: [...prev.lineItems, emptyLineItem()] }));
-  }
-
-  function removeLineItem(index: number) {
-    setValues((prev) => ({
-      ...prev,
-      lineItems: prev.lineItems.length > 1 ? prev.lineItems.filter((_, i) => i !== index) : prev.lineItems,
-    }));
-  }
-
   async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploadingLogo(true);
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const res = await fetch('/api/uploads/invoice-logo', { method: 'POST', body: formData });
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('/api/uploads/invoice-logo', { method: 'POST', body: fd });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || 'Upload failed');
       updateSupplier('logo', json.url);
@@ -229,10 +211,9 @@ export default function InvoiceForm({
     try {
       const payload: Record<string, any> = {
         status: values.status,
-        paymentMethod: values.paymentMethod || '',
         buyerInfo: values.buyerInfo,
         supplierInfo: values.supplierInfo,
-        dueAt: values.dueAt,
+        validUntil: values.validUntil,
         notes: values.notes,
         tvaRate: parseFloat(values.tvaRate) || 0,
         currency: values.currency,
@@ -253,9 +234,8 @@ export default function InvoiceForm({
         }));
       }
 
-      const url = mode === 'create' ? '/api/invoices' : `/api/invoices/${invoiceId}`;
+      const url = mode === 'create' ? '/api/quotes' : `/api/quotes/${quoteId}`;
       const method = mode === 'create' ? 'POST' : 'PATCH';
-
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
@@ -265,12 +245,12 @@ export default function InvoiceForm({
       if (!res.ok) throw new Error(json?.error || 'Request failed');
 
       toast({
-        title: mode === 'create' ? t('invoiceForm.createdToast') : t('invoiceForm.updatedToast'),
+        title: mode === 'create' ? t('quoteForm.createdToast') : t('quoteForm.updatedToast'),
       });
 
-      const savedId = json?.invoice?._id || invoiceId;
+      const savedId = json?.quote?._id || quoteId;
       if (onSaved && savedId) onSaved(savedId);
-      else if (savedId) router.push(`/invoice/${savedId}`);
+      else if (savedId) router.push(`/quote/${savedId}`);
     } catch (err: any) {
       setError(err?.message || String(err));
     } finally {
@@ -283,11 +263,11 @@ export default function InvoiceForm({
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold">
-            {mode === 'create' ? t('invoiceForm.createHeading') : t('invoiceForm.editHeading')}
+            {mode === 'create' ? t('quoteForm.createHeading') : t('quoteForm.editHeading')}
           </h1>
-          {invoiceNumber && (
+          {quoteNumber && (
             <p className="text-muted-foreground">
-              {t('invoiceForm.invoiceNumberLabel')}: {invoiceNumber}
+              {t('quoteForm.quoteNumberLabel')}: {quoteNumber}
             </p>
           )}
         </div>
@@ -307,7 +287,6 @@ export default function InvoiceForm({
         </div>
       )}
 
-      {/* Meta */}
       <Card>
         <CardHeader>
           <CardTitle>{t('invoiceForm.metaSection')}</CardTitle>
@@ -323,23 +302,9 @@ export default function InvoiceForm({
             >
               {STATUSES.map((s) => (
                 <option key={s} value={s}>
-                  {t(`invoiceForm.status_${s}`)}
+                  {t(`quoteForm.status_${s}`)}
                 </option>
               ))}
-            </select>
-          </div>
-          <div>
-            <Label htmlFor="paymentMethod">{t('invoiceForm.paymentMethod')}</Label>
-            <select
-              id="paymentMethod"
-              value={values.paymentMethod}
-              onChange={(e) => setValues((p) => ({ ...p, paymentMethod: e.target.value }))}
-              className="mt-1 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            >
-              <option value="">{t('invoiceForm.paymentMethod_none')}</option>
-              <option value="CASH">{t('invoiceForm.paymentMethod_CASH')}</option>
-              <option value="CHECK">{t('invoiceForm.paymentMethod_CHECK')}</option>
-              <option value="TRANSFER">{t('invoiceForm.paymentMethod_TRANSFER')}</option>
             </select>
           </div>
           {mode === 'create' && (
@@ -354,12 +319,12 @@ export default function InvoiceForm({
             </div>
           )}
           <div>
-            <Label htmlFor="dueAt">{t('invoiceForm.dueAt')}</Label>
+            <Label htmlFor="validUntil">{t('quoteForm.validUntil')}</Label>
             <Input
-              id="dueAt"
+              id="validUntil"
               type="date"
-              value={values.dueAt}
-              onChange={(e) => setValues((p) => ({ ...p, dueAt: e.target.value }))}
+              value={values.validUntil}
+              onChange={(e) => setValues((p) => ({ ...p, validUntil: e.target.value }))}
             />
           </div>
           <div>
@@ -387,7 +352,6 @@ export default function InvoiceForm({
         </CardContent>
       </Card>
 
-      {/* Supplier info + logo */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 gap-2 flex-wrap">
           <CardTitle>{t('invoiceForm.supplierSection')}</CardTitle>
@@ -398,9 +362,7 @@ export default function InvoiceForm({
             onClick={pullSupplierProfile}
             disabled={refreshingSupplier}
           >
-            {refreshingSupplier
-              ? t('invoiceForm.refreshing')
-              : t('invoiceForm.useMyProfile')}
+            {refreshingSupplier ? t('invoiceForm.refreshing') : t('invoiceForm.useMyProfile')}
           </Button>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
@@ -450,66 +412,35 @@ export default function InvoiceForm({
           </div>
           <div>
             <Label htmlFor="s-name">{t('invoiceForm.name')}</Label>
-            <Input
-              id="s-name"
-              value={values.supplierInfo.name}
-              onChange={(e) => updateSupplier('name', e.target.value)}
-            />
+            <Input id="s-name" value={values.supplierInfo.name} onChange={(e) => updateSupplier('name', e.target.value)} />
           </div>
           <div>
             <Label htmlFor="s-taxId">{t('invoiceForm.taxId')}</Label>
-            <Input
-              id="s-taxId"
-              value={values.supplierInfo.taxId}
-              onChange={(e) => updateSupplier('taxId', e.target.value)}
-            />
+            <Input id="s-taxId" value={values.supplierInfo.taxId} onChange={(e) => updateSupplier('taxId', e.target.value)} />
           </div>
           <div>
             <Label htmlFor="s-address">{t('invoiceForm.address')}</Label>
-            <Input
-              id="s-address"
-              value={values.supplierInfo.address}
-              onChange={(e) => updateSupplier('address', e.target.value)}
-            />
+            <Input id="s-address" value={values.supplierInfo.address} onChange={(e) => updateSupplier('address', e.target.value)} />
           </div>
           <div>
             <Label htmlFor="s-city">{t('invoiceForm.city')}</Label>
-            <Input
-              id="s-city"
-              value={values.supplierInfo.city}
-              onChange={(e) => updateSupplier('city', e.target.value)}
-            />
+            <Input id="s-city" value={values.supplierInfo.city} onChange={(e) => updateSupplier('city', e.target.value)} />
           </div>
           <div>
             <Label htmlFor="s-phone">{t('invoiceForm.phone')}</Label>
-            <Input
-              id="s-phone"
-              value={values.supplierInfo.phone}
-              onChange={(e) => updateSupplier('phone', e.target.value)}
-            />
+            <Input id="s-phone" value={values.supplierInfo.phone} onChange={(e) => updateSupplier('phone', e.target.value)} />
           </div>
           <div>
             <Label htmlFor="s-email">{t('invoiceForm.email')}</Label>
-            <Input
-              id="s-email"
-              type="email"
-              value={values.supplierInfo.email}
-              onChange={(e) => updateSupplier('email', e.target.value)}
-            />
+            <Input id="s-email" type="email" value={values.supplierInfo.email} onChange={(e) => updateSupplier('email', e.target.value)} />
           </div>
           <div className="md:col-span-2">
             <Label htmlFor="s-website">{t('invoiceForm.website')}</Label>
-            <Input
-              id="s-website"
-              value={values.supplierInfo.website}
-              onChange={(e) => updateSupplier('website', e.target.value)}
-              placeholder="https://..."
-            />
+            <Input id="s-website" value={values.supplierInfo.website} onChange={(e) => updateSupplier('website', e.target.value)} placeholder="https://..." />
           </div>
         </CardContent>
       </Card>
 
-      {/* Buyer info */}
       <Card>
         <CardHeader>
           <CardTitle>{t('invoiceForm.buyerSection')}</CardTitle>
@@ -519,58 +450,31 @@ export default function InvoiceForm({
             <Label htmlFor="b-name">
               {t('invoiceForm.name')} <span className="text-destructive">*</span>
             </Label>
-            <Input
-              id="b-name"
-              required
-              value={values.buyerInfo.name}
-              onChange={(e) => updateBuyer('name', e.target.value)}
-            />
+            <Input id="b-name" required value={values.buyerInfo.name} onChange={(e) => updateBuyer('name', e.target.value)} />
           </div>
           <div>
             <Label htmlFor="b-taxId">{t('invoiceForm.taxId')}</Label>
-            <Input
-              id="b-taxId"
-              value={values.buyerInfo.taxId}
-              onChange={(e) => updateBuyer('taxId', e.target.value)}
-            />
+            <Input id="b-taxId" value={values.buyerInfo.taxId} onChange={(e) => updateBuyer('taxId', e.target.value)} />
           </div>
           <div>
             <Label htmlFor="b-address">{t('invoiceForm.address')}</Label>
-            <Input
-              id="b-address"
-              value={values.buyerInfo.address}
-              onChange={(e) => updateBuyer('address', e.target.value)}
-            />
+            <Input id="b-address" value={values.buyerInfo.address} onChange={(e) => updateBuyer('address', e.target.value)} />
           </div>
           <div>
             <Label htmlFor="b-city">{t('invoiceForm.city')}</Label>
-            <Input
-              id="b-city"
-              value={values.buyerInfo.city}
-              onChange={(e) => updateBuyer('city', e.target.value)}
-            />
+            <Input id="b-city" value={values.buyerInfo.city} onChange={(e) => updateBuyer('city', e.target.value)} />
           </div>
           <div>
             <Label htmlFor="b-phone">{t('invoiceForm.phone')}</Label>
-            <Input
-              id="b-phone"
-              value={values.buyerInfo.phone}
-              onChange={(e) => updateBuyer('phone', e.target.value)}
-            />
+            <Input id="b-phone" value={values.buyerInfo.phone} onChange={(e) => updateBuyer('phone', e.target.value)} />
           </div>
           <div>
             <Label htmlFor="b-email">{t('invoiceForm.email')}</Label>
-            <Input
-              id="b-email"
-              type="email"
-              value={values.buyerInfo.email}
-              onChange={(e) => updateBuyer('email', e.target.value)}
-            />
+            <Input id="b-email" type="email" value={values.buyerInfo.email} onChange={(e) => updateBuyer('email', e.target.value)} />
           </div>
         </CardContent>
       </Card>
 
-      {/* Line items */}
       <Card>
         <CardHeader>
           <CardTitle>{t('invoiceForm.lineItemsSection')}</CardTitle>
@@ -586,52 +490,23 @@ export default function InvoiceForm({
             >
               <div>
                 <Label htmlFor={`li-desc-${idx}`}>{t('invoiceForm.description')}</Label>
-                <Input
-                  id={`li-desc-${idx}`}
-                  value={item.description}
-                  onChange={(e) => updateLineItem(idx, 'description', e.target.value)}
-                  disabled={lineItemsLocked}
-                />
+                <Input id={`li-desc-${idx}`} value={item.description} onChange={(e) => updateLineItem(idx, 'description', e.target.value)} disabled={lineItemsLocked} />
               </div>
               <div>
                 <Label htmlFor={`li-qty-${idx}`}>{t('invoiceForm.quantity')}</Label>
-                <Input
-                  id={`li-qty-${idx}`}
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={item.qty}
-                  onChange={(e) => updateLineItem(idx, 'qty', e.target.value)}
-                  disabled={lineItemsLocked}
-                />
+                <Input id={`li-qty-${idx}`} type="number" min="0" step="1" value={item.qty} onChange={(e) => updateLineItem(idx, 'qty', e.target.value)} disabled={lineItemsLocked} />
               </div>
               <div>
                 <Label htmlFor={`li-price-${idx}`}>{t('invoiceForm.unitPrice')}</Label>
-                <Input
-                  id={`li-price-${idx}`}
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={item.unitPrice}
-                  onChange={(e) => updateLineItem(idx, 'unitPrice', e.target.value)}
-                  disabled={lineItemsLocked}
-                />
+                <Input id={`li-price-${idx}`} type="number" min="0" step="0.01" value={item.unitPrice} onChange={(e) => updateLineItem(idx, 'unitPrice', e.target.value)} disabled={lineItemsLocked} />
               </div>
               <div>
                 <Label>{t('invoiceForm.subtotal')}</Label>
                 <div className="h-10 flex items-center px-3 rounded-md border bg-muted/30 text-sm">
-                  {formatPrice(
-                    (parseFloat(item.qty) || 0) * (parseFloat(item.unitPrice) || 0)
-                  )}
+                  {formatPrice((parseFloat(item.qty) || 0) * (parseFloat(item.unitPrice) || 0))}
                 </div>
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => removeLineItem(idx)}
-                disabled={lineItemsLocked || values.lineItems.length <= 1}
-              >
+              <Button type="button" variant="outline" size="sm" onClick={() => removeLineItem(idx)} disabled={lineItemsLocked || values.lineItems.length <= 1}>
                 {t('invoiceForm.remove')}
               </Button>
             </div>
@@ -650,9 +525,7 @@ export default function InvoiceForm({
                 <span className="font-semibold">{formatPrice(totals.subtotalHT)}</span>
               </div>
               <div className="flex justify-between">
-                <span>
-                  {t('invoiceForm.tva')} ({values.tvaRate || 0}%):
-                </span>
+                <span>{t('invoiceForm.tva')} ({values.tvaRate || 0}%):</span>
                 <span className="font-semibold">{formatPrice(totals.tvaAmount)}</span>
               </div>
               <div className="flex justify-between text-base pt-2 border-t">
@@ -664,7 +537,6 @@ export default function InvoiceForm({
         </CardContent>
       </Card>
 
-      {/* Notes */}
       <Card>
         <CardHeader>
           <CardTitle>{t('invoiceForm.notesSection')}</CardTitle>

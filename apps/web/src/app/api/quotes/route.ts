@@ -2,9 +2,12 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@agrimed/db';
-import { Invoice, Order, Quote, Supplier, User } from '@agrimed/db/models';
+import { Quote, Order, Supplier, User } from '@agrimed/db/models';
 import { requireAuth } from '@/lib/auth/session';
 import mongoose from 'mongoose';
+
+const ALLOWED_STATUSES = ['DRAFT', 'SENT', 'ACCEPTED', 'REJECTED', 'EXPIRED', 'CONVERTED'] as const;
+type QuoteStatus = typeof ALLOWED_STATUSES[number];
 
 type IncomingLineItem = {
   description?: unknown;
@@ -12,7 +15,6 @@ type IncomingLineItem = {
   quantity?: unknown;
   unitPrice?: unknown;
 };
-
 type IncomingInfo = {
   name?: unknown;
   address?: unknown;
@@ -24,47 +26,15 @@ type IncomingInfo = {
   website?: unknown;
 };
 
-function roleToTier(role: string | undefined): 'FREE' | 'PRIME' | 'SUPER' | undefined {
-  if (role === 'SUPER_SUPPLIER') return 'SUPER';
-  if (role === 'SUPPLIER_PRIME') return 'PRIME';
-  if (role === 'SUPPLIER') return 'FREE';
-  return undefined;
-}
-
-function composeAddress(supplier: any | null): { address: string; city: string } {
-  const primary = supplier?.addresses?.[0];
-  if (!primary) return { address: '', city: '' };
-  const address = String(primary.addressLine || '').trim();
-  const city = [primary.city, primary.wilaya, primary.postalCode]
-    .filter(Boolean)
-    .join(', ')
-    .trim();
-  return { address, city };
-}
-
-const ALLOWED_STATUSES = ['DRAFT', 'SENT', 'PAID', 'OVERDUE', 'CANCELLED'] as const;
-type InvoiceStatus = typeof ALLOWED_STATUSES[number];
-
-const ALLOWED_PAYMENT_METHODS = ['CASH', 'CHECK', 'TRANSFER'] as const;
-type PaymentMethod = typeof ALLOWED_PAYMENT_METHODS[number];
-
-function normalizePaymentMethod(v: unknown): PaymentMethod | undefined {
-  if (typeof v !== 'string') return undefined;
-  const up = v.trim().toUpperCase() as PaymentMethod;
-  return ALLOWED_PAYMENT_METHODS.includes(up) ? up : undefined;
-}
-
 function toNumber(v: unknown, fallback = 0): number {
   const n = typeof v === 'number' ? v : parseFloat(String(v ?? ''));
   return Number.isFinite(n) ? n : fallback;
 }
-
 function toStr(v: unknown, max = 500): string {
   if (v == null) return '';
   const s = String(v).trim();
   return s.length > max ? s.slice(0, max) : s;
 }
-
 function normalizeInfo(input: IncomingInfo | undefined | null) {
   const src = input ?? {};
   return {
@@ -78,7 +48,6 @@ function normalizeInfo(input: IncomingInfo | undefined | null) {
     website: toStr(src.website, 500),
   };
 }
-
 function normalizeLineItems(items: unknown) {
   if (!Array.isArray(items)) return [];
   return items
@@ -87,168 +56,106 @@ function normalizeLineItems(items: unknown) {
       const description = toStr(r.description, 500);
       const qty = Math.max(0, toNumber(r.qty ?? r.quantity));
       const unitPrice = Math.max(0, toNumber(r.unitPrice));
-      const subtotal = Math.round(qty * unitPrice * 100) / 100;
-      return { description, qty, unitPrice, subtotal };
+      return { description, qty, unitPrice, subtotal: Math.round(qty * unitPrice * 100) / 100 };
     })
     .filter((i) => i.description && i.qty > 0);
 }
-
-function computeTotals(
-  items: Array<{ subtotal: number }>,
-  tvaRatePercent: number,
-  currency: string
-) {
+function computeTotals(items: Array<{ subtotal: number }>, tvaRatePercent: number, currency: string) {
   const subtotalHT = Math.round(items.reduce((s, i) => s + i.subtotal, 0) * 100) / 100;
   const tvaRate = Math.max(0, Math.min(100, tvaRatePercent));
   const tvaAmount = Math.round(subtotalHT * (tvaRate / 100) * 100) / 100;
   const totalTTC = Math.round((subtotalHT + tvaAmount) * 100) / 100;
   return { subtotalHT, tvaRate, tvaAmount, totalTTC, currency };
 }
+function roleToTier(role: string | undefined): 'FREE' | 'PRIME' | 'SUPER' | undefined {
+  if (role === 'SUPER_SUPPLIER') return 'SUPER';
+  if (role === 'SUPPLIER_PRIME') return 'PRIME';
+  if (role === 'SUPPLIER') return 'FREE';
+  return undefined;
+}
+function composeAddress(supplier: any | null) {
+  const primary = supplier?.addresses?.[0];
+  if (!primary) return { address: '', city: '' };
+  return {
+    address: String(primary.addressLine || '').trim(),
+    city: [primary.city, primary.wilaya, primary.postalCode].filter(Boolean).join(', ').trim(),
+  };
+}
 
-async function nextInvoiceNumberForYear(year: number): Promise<string> {
-  // invoiceNumber is globally unique — derive next from the max existing for the year.
-  const prefix = `FAC-${year}-`;
-  const latest = await Invoice.findOne({ invoiceNumber: { $regex: `^${prefix}` } })
-    .sort({ invoiceNumber: -1 })
-    .select('invoiceNumber')
+async function nextQuoteNumberForYear(year: number): Promise<string> {
+  const prefix = `DEV-${year}-`;
+  const latest = await Quote.findOne({ quoteNumber: { $regex: `^${prefix}` } })
+    .sort({ quoteNumber: -1 })
+    .select('quoteNumber')
     .lean();
-
   let next = 1;
-  if (latest?.invoiceNumber) {
-    const tail = latest.invoiceNumber.slice(prefix.length);
-    const parsed = parseInt(tail, 10);
+  if (latest?.quoteNumber) {
+    const parsed = parseInt(latest.quoteNumber.slice(prefix.length), 10);
     if (Number.isFinite(parsed)) next = parsed + 1;
   }
   return `${prefix}${String(next).padStart(5, '0')}`;
 }
 
-// Create an invoice with retry on invoiceNumber duplicate-key collisions
-// (guards against concurrent creation races).
-async function createInvoiceWithUniqueNumber(
-  base: Record<string, unknown>,
-  year: number,
-  maxAttempts = 5
-) {
+async function createQuoteWithUniqueNumber(base: Record<string, unknown>, year: number, maxAttempts = 5) {
   let attempt = 0;
   let increment = 0;
   while (attempt < maxAttempts) {
     attempt += 1;
-    const nextNumber = await nextInvoiceNumberForYear(year);
-    // If we've retried, bump by our local increment to escape the losing race.
+    const nextNumber = await nextQuoteNumberForYear(year);
     const finalNumber = increment
       ? (() => {
-          const prefix = `FAC-${year}-`;
+          const prefix = `DEV-${year}-`;
           const parsed = parseInt(nextNumber.slice(prefix.length), 10);
           return `${prefix}${String(parsed + increment).padStart(5, '0')}`;
         })()
       : nextNumber;
-
     try {
-      return await Invoice.create({ ...base, invoiceNumber: finalNumber });
+      return await Quote.create({ ...base, quoteNumber: finalNumber });
     } catch (err: any) {
-      if (err?.code === 11000 && err?.keyPattern?.invoiceNumber) {
+      if (err?.code === 11000 && err?.keyPattern?.quoteNumber) {
         increment += 1;
         continue;
       }
       throw err;
     }
   }
-  throw new Error('Failed to allocate a unique invoice number');
+  throw new Error('Failed to allocate a unique quote number');
 }
 
-// POST — generate invoice from an order OR create one from scratch
+// POST — create quote (from-order or from-scratch)
 export async function POST(req: NextRequest) {
   try {
     await connectDB();
     const session = await requireAuth();
 
-    // Only suppliers (any tier) or admins can create invoices
     const isAdmin = session.role === 'ADMIN';
     const isSupplier =
       session.role === 'SUPPLIER' ||
       session.role === 'SUPPLIER_PRIME' ||
       session.role === 'SUPER_SUPPLIER';
-
     if (!isAdmin && !isSupplier) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const body = await req.json().catch(() => ({}));
     const orderId = typeof body?.orderId === 'string' ? body.orderId : null;
-    const quoteId = typeof body?.quoteId === 'string' ? body.quoteId : null;
 
-    // ── Path C: generate from an existing quote (devis) ────────
-    if (quoteId) {
-      if (!mongoose.isValidObjectId(quoteId)) {
-        return NextResponse.json({ error: 'Invalid quoteId' }, { status: 400 });
-      }
-      const quote = await Quote.findById(quoteId).lean();
-      if (!quote) return NextResponse.json({ error: 'Quote not found' }, { status: 404 });
-      if (!isAdmin && quote.supplierId?.toString() !== session.supplierId) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-      }
-      if (quote.convertedInvoiceId) {
-        const existing = await Invoice.findById(quote.convertedInvoiceId).lean();
-        return NextResponse.json(
-          { error: 'Invoice already exists for this quote', invoice: existing },
-          { status: 409 }
-        );
-      }
-
-      const paymentMethod = normalizePaymentMethod(body?.paymentMethod);
-      const requestedStatus = toStr(body?.status, 20).toUpperCase() as InvoiceStatus;
-      const status: InvoiceStatus = ALLOWED_STATUSES.includes(requestedStatus)
-        ? requestedStatus
-        : 'SENT';
-
-      const now = new Date();
-      const invoice = await createInvoiceWithUniqueNumber(
-        {
-          quoteId: quote._id,
-          orderId: quote.orderId,
-          supplierId: quote.supplierId,
-          buyerId: quote.buyerId,
-          status,
-          paymentMethod,
-          issuedAt: now,
-          dueAt: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000),
-          supplierInfo: quote.supplierInfo,
-          buyerInfo: quote.buyerInfo,
-          lineItems: quote.lineItems,
-          totals: quote.totals,
-          notes: quote.notes,
-        },
-        now.getFullYear()
-      );
-
-      // Link the quote → invoice and mark it converted.
-      await Quote.findByIdAndUpdate(quote._id, {
-        convertedInvoiceId: invoice._id,
-        status: 'CONVERTED',
-      });
-
-      return NextResponse.json({ invoice }, { status: 201 });
-    }
-
-    // ── Path A: generate from an existing order ────────────────
+    // ── From an existing order ─────────────────────────────────
     if (orderId) {
       if (!mongoose.isValidObjectId(orderId)) {
         return NextResponse.json({ error: 'Invalid orderId' }, { status: 400 });
       }
-
       const order = await Order.findById(orderId).lean();
-      if (!order) {
-        return NextResponse.json({ error: 'Order not found' }, { status: 404 });
-      }
-
+      if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404 });
       if (!isAdmin && order.supplierId?.toString() !== session.supplierId) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }
 
-      const existing = await Invoice.findOne({ orderId: order._id }).lean();
+      // Duplicate protection: one draft quote per order at a time
+      const existing = await Quote.findOne({ orderId: order._id, status: { $ne: 'CONVERTED' } }).lean();
       if (existing) {
         return NextResponse.json(
-          { error: 'Invoice already exists for this order', invoice: existing },
+          { error: 'A quote already exists for this order', quote: existing },
           { status: 409 }
         );
       }
@@ -258,32 +165,30 @@ export async function POST(req: NextRequest) {
         ? await User.findById(supplier.userId).select('email role').lean()
         : null;
       const buyer = await User.findById(order.buyerId).lean();
+      const supplierAddr = composeAddress(supplier);
 
       const lineItems = (order.items || []).map((item: any) => {
         const qty = Number(item.qty ?? item.quantity ?? 0);
         const unitPrice = Number(item.unitPrice ?? 0);
-        const subtotal = Number(item.subtotal ?? qty * unitPrice);
         return {
           description: `${item.productName}${item.variantName ? ` - ${item.variantName}` : ''}`,
           qty,
           unitPrice,
-          subtotal,
+          subtotal: Math.round(qty * unitPrice * 100) / 100,
         };
       });
-
       const totals = computeTotals(lineItems, 19, 'TND');
-      const supplierAddr = composeAddress(supplier);
 
-      const invoice = await createInvoiceWithUniqueNumber(
+      const quote = await createQuoteWithUniqueNumber(
         {
           orderId: order._id,
           supplierId: order.supplierId,
           buyerId: order.buyerId,
-          status: 'SENT',
+          status: 'DRAFT',
           issuedAt: new Date(),
-          dueAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
           supplierInfo: {
-            name: supplier?.companyName || 'Unknown',
+            name: supplier?.companyName || '',
             address: supplierAddr.address,
             city: supplierAddr.city,
             logo: supplier?.logo || '',
@@ -294,7 +199,9 @@ export async function POST(req: NextRequest) {
             isVerified: !!supplier?.isVerified,
           },
           buyerInfo: {
-            name: `${buyer?.profile?.firstName || ''} ${buyer?.profile?.lastName || ''}`.trim() || 'Unknown',
+            name:
+              `${buyer?.profile?.firstName || ''} ${buyer?.profile?.lastName || ''}`.trim() ||
+              'Unknown',
             city: buyer?.profile?.city || '',
             email: buyer?.email || '',
           },
@@ -304,13 +211,10 @@ export async function POST(req: NextRequest) {
         new Date().getFullYear()
       );
 
-      await Order.findByIdAndUpdate(order._id, { invoiceId: invoice._id });
-
-      return NextResponse.json({ invoice }, { status: 201 });
+      return NextResponse.json({ quote }, { status: 201 });
     }
 
-    // ── Path B: create manually (no order) ─────────────────────
-    // Resolve target supplierId
+    // ── From scratch ───────────────────────────────────────────
     let supplierId: string | undefined;
     if (isSupplier) {
       if (!session.supplierId) {
@@ -320,10 +224,7 @@ export async function POST(req: NextRequest) {
     } else if (isAdmin) {
       const bodySupplier = typeof body?.supplierId === 'string' ? body.supplierId : null;
       if (!bodySupplier || !mongoose.isValidObjectId(bodySupplier)) {
-        return NextResponse.json(
-          { error: 'supplierId is required for admin-created invoices' },
-          { status: 400 }
-        );
+        return NextResponse.json({ error: 'supplierId is required for admin-created quotes' }, { status: 400 });
       }
       supplierId = bodySupplier;
     }
@@ -332,7 +233,6 @@ export async function POST(req: NextRequest) {
     if (lineItems.length === 0) {
       return NextResponse.json({ error: 'At least one line item is required' }, { status: 400 });
     }
-
     const buyerInfo = normalizeInfo(body?.buyerInfo);
     if (!buyerInfo.name) {
       return NextResponse.json({ error: 'Buyer name is required' }, { status: 400 });
@@ -361,36 +261,31 @@ export async function POST(req: NextRequest) {
     const currency = toStr(body?.currency, 8) || 'TND';
     const totals = computeTotals(lineItems, tvaRatePercent, currency);
 
-    const requestedStatus = toStr(body?.status, 20).toUpperCase() as InvoiceStatus;
-    const status: InvoiceStatus =
-      ALLOWED_STATUSES.includes(requestedStatus) ? requestedStatus : 'DRAFT';
+    const requestedStatus = toStr(body?.status, 20).toUpperCase() as QuoteStatus;
+    const status: QuoteStatus = ALLOWED_STATUSES.includes(requestedStatus) ? requestedStatus : 'DRAFT';
 
     const issuedAt = body?.issuedAt ? new Date(body.issuedAt) : new Date();
-    const dueAt = body?.dueAt
-      ? new Date(body.dueAt)
+    const validUntil = body?.validUntil
+      ? new Date(body.validUntil)
       : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
-    if (Number.isNaN(issuedAt.getTime()) || Number.isNaN(dueAt.getTime())) {
+    if (Number.isNaN(issuedAt.getTime()) || Number.isNaN(validUntil.getTime())) {
       return NextResponse.json({ error: 'Invalid dates' }, { status: 400 });
     }
 
-    // Optional buyer link by email (best-effort — no error if not found)
     let buyerId: mongoose.Types.ObjectId | undefined;
     if (buyerInfo.email) {
-      const linked = await User.findOne({ email: buyerInfo.email.toLowerCase() })
-        .select('_id')
-        .lean();
+      const linked = await User.findOne({ email: buyerInfo.email.toLowerCase() }).select('_id').lean();
       if (linked?._id) buyerId = linked._id;
     }
 
-    const invoice = await createInvoiceWithUniqueNumber(
+    const quote = await createQuoteWithUniqueNumber(
       {
         supplierId,
         buyerId,
         status,
-        paymentMethod: normalizePaymentMethod(body?.paymentMethod),
         issuedAt,
-        dueAt,
+        validUntil,
         supplierInfo,
         buyerInfo,
         lineItems,
@@ -400,22 +295,18 @@ export async function POST(req: NextRequest) {
       issuedAt.getFullYear()
     );
 
-    return NextResponse.json({ invoice }, { status: 201 });
+    return NextResponse.json({ quote }, { status: 201 });
   } catch (error) {
     if (error instanceof Error && error.message === 'UNAUTHORIZED') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    console.error('Invoice creation error:', error);
-    const message =
-      error instanceof Error ? error.message : 'Internal server error';
-    return NextResponse.json(
-      { error: message, name: (error as any)?.name },
-      { status: 500 }
-    );
+    console.error('Quote creation error:', error);
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
-// GET — list invoices for the authenticated user
+// GET — list quotes for the authenticated user
 export async function GET(req: NextRequest) {
   try {
     await connectDB();
@@ -427,38 +318,32 @@ export async function GET(req: NextRequest) {
     const limit = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 100) : 20;
 
     const query: Record<string, unknown> = {};
-
     if (
       session.role === 'SUPPLIER' ||
       session.role === 'SUPPLIER_PRIME' ||
       session.role === 'SUPER_SUPPLIER'
     ) {
-      if (!session.supplierId) return NextResponse.json({ invoices: [], hasMore: false });
+      if (!session.supplierId) return NextResponse.json({ quotes: [], hasMore: false });
       query.supplierId = new mongoose.Types.ObjectId(session.supplierId);
     } else if (session.role === 'BUYER') {
       query.buyerId = new mongoose.Types.ObjectId(session.userId);
     }
-    // ADMIN sees all
 
     if (cursor && mongoose.isValidObjectId(cursor)) {
       query._id = { $lt: new mongoose.Types.ObjectId(cursor) };
     }
 
-    const invoices = await Invoice.find(query)
-      .sort({ _id: -1 })
-      .limit(limit + 1)
-      .lean();
-
-    const hasMore = invoices.length > limit;
-    const data = hasMore ? invoices.slice(0, limit) : invoices;
+    const quotes = await Quote.find(query).sort({ _id: -1 }).limit(limit + 1).lean();
+    const hasMore = quotes.length > limit;
+    const data = hasMore ? quotes.slice(0, limit) : quotes;
     const nextCursor = hasMore ? data[data.length - 1]?._id?.toString() : undefined;
 
-    return NextResponse.json({ invoices: data, nextCursor, hasMore });
+    return NextResponse.json({ quotes: data, nextCursor, hasMore });
   } catch (error) {
     if (error instanceof Error && error.message === 'UNAUTHORIZED') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    console.error('Invoice list error:', error);
+    console.error('Quote list error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

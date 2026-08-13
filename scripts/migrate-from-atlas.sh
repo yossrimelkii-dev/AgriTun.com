@@ -62,7 +62,11 @@ echo "→ Using temporary dump dir: $DUMP_DIR"
 echo "→ [1/2] Dumping from Atlas (this can take a few minutes)..."
 # Run mongodump in a throwaway container. Mount the temp dir so the dump
 # lands on the host filesystem where we can then push it into our mongo.
+# --user 0:0 → the mongo:7 image defaults to uid 999 (mongodb user), which
+# can't write to our root-owned bind mount. Running as root inside this
+# throwaway container is safe (it exits immediately after the dump).
 docker run --rm \
+    --user 0:0 \
     -v "$DUMP_DIR:/dump" \
     mongo:7 \
     mongodump --uri="$ATLAS_URI" --out=/dump --gzip
