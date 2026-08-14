@@ -30,6 +30,7 @@ export default function AdminCategoriesPage() {
   const [formMode, setFormMode] = useState<'ROOT' | 'SUB'>('ROOT');
   const [newCat, setNewCat] = useState({ name: '', slug: '', sector: 'MEDICAL', icon: '', image: '', parentId: '' });
   const imageInputRef = useRef<HTMLInputElement | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -149,20 +150,35 @@ export default function AdminCategoriesPage() {
 
   async function handleImageUpload(file: File | null) {
     if (!file) return;
-
     if (!file.type.startsWith('image/')) {
       toast({ title: 'Veuillez choisir une image valide.' });
       return;
     }
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = typeof reader.result === 'string' ? reader.result : '';
-      if (result) {
-        setNewCat((prev) => ({ ...prev, image: result }));
-      }
-    };
-    reader.readAsDataURL(file);
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: 'Image trop volumineuse (max 5 Mo).' });
+      return;
+    }
+    setUploadingImage(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/uploads/category-image', {
+        method: 'POST',
+        body: formData,
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || 'Upload failed');
+      setNewCat((prev) => ({ ...prev, image: json.url }));
+      toast({ title: 'Image téléversée' });
+    } catch (err: any) {
+      toast({
+        title: 'Échec du téléversement',
+        description: err?.message || String(err),
+      });
+    } finally {
+      setUploadingImage(false);
+      if (imageInputRef.current) imageInputRef.current.value = '';
+    }
   }
 
   return (
@@ -302,10 +318,15 @@ export default function AdminCategoriesPage() {
                       onChange={(e) => setNewCat({ ...newCat, image: e.target.value })}
                     />
                     <div className="flex gap-2">
-                      <Button type="button" variant="outline" onClick={() => imageInputRef.current?.click()}>
-                        Choisir un fichier
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => imageInputRef.current?.click()}
+                        disabled={uploadingImage}
+                      >
+                        {uploadingImage ? 'Téléversement…' : 'Choisir un fichier'}
                       </Button>
-                      {newCat.image && (
+                      {newCat.image && !uploadingImage && (
                         <Button type="button" variant="ghost" onClick={() => setNewCat((prev) => ({ ...prev, image: '' }))}>
                           Effacer
                         </Button>

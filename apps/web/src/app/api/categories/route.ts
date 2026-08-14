@@ -7,7 +7,9 @@ export const revalidate = 300;
 
 const LIST_PROJECTION = '_id name slug icon image sector sortOrder parentId depth';
 const HARD_LIMIT = 500;
-const MAX_ICON_LEN = 512;
+// Cap URL/emoji lengths. Real Cloudinary URLs fit under 512; anything longer
+// is almost certainly a base64 data URI and we drop it to keep the payload small.
+const MAX_ICON_LEN = 1024;
 const MAX_IMAGE_LEN = 2048;
 
 // Build a small, bounded response object. Any `icon`/`image` that looks like a

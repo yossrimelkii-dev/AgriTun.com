@@ -21,10 +21,12 @@
     "clean": "rimraf dist",
     "db:seed": "tsx src/seed.ts",
     "db:migrate:animaux": "tsx src/migrate_animaux.ts",
-    "db:migrate:animaux:dry": "tsx src/migrate_animaux.ts --dry-run"
+    "db:migrate:animaux:dry": "tsx src/migrate_animaux.ts --dry-run",
+    "db:migrate:category-images": "tsx src/migrate_category_images.ts"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
+    "cloudinary": "^2.9.0",
     "mongoose": "^8.8.0",
     "zod": "^3.23.0"
   },
