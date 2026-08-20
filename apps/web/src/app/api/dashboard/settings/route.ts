@@ -42,6 +42,17 @@ export async function PATCH(req: NextRequest) {
     if (typeof body.description === 'string') {
       updates.description = body.description.trim();
     }
+    if (typeof body.taxId === 'string') {
+      updates.taxId = body.taxId.trim();
+    }
+    if (typeof body.logo === 'string') {
+      const trimmed = body.logo.trim();
+      if (trimmed === '' || /^https?:\/\//i.test(trimmed)) {
+        updates.logo = trimmed;
+      } else {
+        return NextResponse.json({ error: 'Logo URL invalide' }, { status: 400 });
+      }
+    }
     if (body.address && typeof body.address === 'object') {
       updates.addresses = [
         {

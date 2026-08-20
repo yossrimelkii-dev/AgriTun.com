@@ -13,6 +13,8 @@ import { useI18n } from '@/components/providers/locale-provider';
 type CompanyForm = {
   companyName: string;
   description: string;
+  taxId: string;
+  logo: string;
   city: string;
   wilaya: string;
   addressLine: string;
@@ -370,6 +372,8 @@ export default function DashboardSettingsPage() {
   const [company, setCompany] = useState<CompanyForm>({
     companyName: '',
     description: '',
+    taxId: '',
+    logo: '',
     city: '',
     wilaya: '',
     addressLine: '',
@@ -384,6 +388,8 @@ export default function DashboardSettingsPage() {
   });
   const [settings, setSettings] = useState<Record<string, boolean>>({});
   const [initDone, setInitDone] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement | null>(null);
   const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
   // Sync form state when data loads
@@ -391,6 +397,8 @@ export default function DashboardSettingsPage() {
     setCompany({
       companyName: supplier.companyName || '',
       description: supplier.description || '',
+      taxId: supplier.taxId || '',
+      logo: supplier.logo || '',
       city: hq.city || '',
       wilaya: hq.wilaya || '',
       addressLine: hq.addressLine || '',
@@ -444,6 +452,8 @@ export default function DashboardSettingsPage() {
     saveMutation.mutate({
       companyName: company.companyName,
       description: company.description,
+      taxId: company.taxId,
+      logo: company.logo,
       address: {
         city: company.city,
         wilaya: company.wilaya,
@@ -464,6 +474,32 @@ export default function DashboardSettingsPage() {
   function saveNotifications(e: React.FormEvent) {
     e.preventDefault();
     saveMutation.mutate({ settings });
+  }
+
+  async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingLogo(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/uploads/invoice-logo', { method: 'POST', body: formData });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || 'Upload failed');
+      setCompany((f) => ({ ...f, logo: json.url }));
+      saveMutation.mutate({ logo: json.url });
+      toast({ title: t('dashboardSettings.logoUploaded') });
+    } catch (err: any) {
+      toast({ title: t('dashboardSettings.logoUploadFailed'), description: err?.message });
+    } finally {
+      setUploadingLogo(false);
+      if (logoInputRef.current) logoInputRef.current.value = '';
+    }
+  }
+
+  function handleLogoRemove() {
+    setCompany((f) => ({ ...f, logo: '' }));
+    saveMutation.mutate({ logo: '' });
   }
 
   async function copyGoogleBusinessPayload() {
@@ -518,6 +554,87 @@ export default function DashboardSettingsPage() {
             ) : (
               <p className="text-sm text-muted-foreground">{t('dashboardSettings.publicProfileUnavailable')}</p>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Billing identity — MF + logo, auto-filled on invoices & quotes */}
+        <Card>
+          <CardHeader>
+            <CardTitle>{t('dashboardSettings.billingIdentity')}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <p className="text-sm text-muted-foreground">
+              {t('dashboardSettings.billingIdentityHelp')}
+            </p>
+
+            <div className="flex items-start gap-4">
+              <div className="w-24 h-24 rounded-lg border bg-muted/30 flex items-center justify-center overflow-hidden shrink-0">
+                {company.logo ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={company.logo}
+                    alt={company.companyName || 'logo'}
+                    className="w-full h-full object-contain"
+                  />
+                ) : (
+                  <span className="text-[10px] text-muted-foreground text-center px-2">
+                    {t('dashboardSettings.noLogo')}
+                  </span>
+                )}
+              </div>
+              <div className="flex-1 space-y-2">
+                <Label className="text-sm font-semibold">{t('dashboardSettings.companyLogo')}</Label>
+                <p className="text-xs text-muted-foreground">{t('dashboardSettings.companyLogoHelp')}</p>
+                <input
+                  ref={logoInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleLogoUpload}
+                  className="hidden"
+                />
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={uploadingLogo}
+                    onClick={() => logoInputRef.current?.click()}
+                  >
+                    {uploadingLogo
+                      ? t('dashboardSettings.logoUploading')
+                      : company.logo
+                        ? t('dashboardSettings.logoReplace')
+                        : t('dashboardSettings.logoUpload')}
+                  </Button>
+                  {company.logo && !uploadingLogo && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleLogoRemove}
+                    >
+                      {t('dashboardSettings.logoRemove')}
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="settings-taxId">{t('dashboardSettings.taxId')}</Label>
+              <Input
+                id="settings-taxId"
+                value={company.taxId ?? ''}
+                onChange={(e) => setCompany((f) => ({ ...f, taxId: e.target.value }))}
+                onBlur={() => {
+                  if (initDone) {
+                    saveMutation.mutate({ taxId: company.taxId });
+                  }
+                }}
+                placeholder={t('dashboardSettings.taxIdPlaceholder')}
+                maxLength={60}
+              />
+            </div>
           </CardContent>
         </Card>
 

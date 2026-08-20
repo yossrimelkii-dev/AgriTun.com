@@ -217,73 +217,109 @@ export default function InvoicePrintPage() {
 
       {/* Invoice document */}
       <div className="max-w-4xl mx-auto bg-white shadow-xl rounded-lg overflow-hidden print-shadow-none print-avoid-break">
-        {/* Slim colored accent stripe */}
-        <div className="h-1.5 bg-gradient-to-r from-primary via-primary/80 to-secondary" />
+        {/* Premium header — logo forward, subtle brand backdrop */}
+        <div className="relative overflow-hidden border-b border-slate-200">
+          {/* Layered decorative brand backdrop */}
+          <div aria-hidden className="absolute inset-0 bg-gradient-to-br from-primary/8 via-white to-secondary/5" />
+          <div aria-hidden className="absolute -top-24 -right-24 w-72 h-72 rounded-full bg-primary/10 blur-3xl" />
+          <div aria-hidden className="absolute -bottom-20 -left-16 w-64 h-64 rounded-full bg-secondary/10 blur-3xl" />
+          <div
+            aria-hidden
+            className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-primary via-primary/80 to-secondary"
+          />
 
-        {/* Compact header — identity only. Full contact info moves to the bottom bar. */}
-        <div className="px-6 md:px-10 pt-6 pb-5 border-b border-slate-200 flex items-center justify-between gap-6 flex-wrap">
-          <div className="flex items-center gap-4 min-w-0">
-            {invoice.supplierInfo?.logo ? (
-              <div className="w-20 h-20 rounded-xl border border-slate-200 bg-white p-1.5 shrink-0 shadow-sm">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={invoice.supplierInfo.logo}
-                  alt={`${invoice.supplierInfo?.name || 'Supplier'} logo`}
-                  className="w-full h-full object-contain"
+          <div className="relative px-6 md:px-10 pt-8 pb-6 flex items-start justify-between gap-6 flex-wrap">
+            <div className="flex items-center gap-5 min-w-0">
+              {/* Logo — framed, generous, with subtle accent ring */}
+              <div className="relative shrink-0">
+                <div
+                  aria-hidden
+                  className="absolute -inset-1 rounded-2xl bg-gradient-to-br from-primary/40 via-primary/10 to-secondary/40 opacity-60 blur-sm"
                 />
-              </div>
-            ) : (
-              <div className="w-20 h-20 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 flex items-center justify-center text-3xl font-bold text-primary shrink-0">
-                {invoice.supplierInfo?.name?.[0]?.toUpperCase() || 'F'}
-              </div>
-            )}
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight leading-tight">
-                  {invoice.supplierInfo?.name || t('invoicePrint.supplierFallback')}
-                </h1>
-                {invoice.supplierInfo?.isVerified && (
-                  <span
-                    className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-500 text-white text-[10px] shrink-0"
-                    title={t('invoicePrint.verified')}
-                    aria-label={t('invoicePrint.verified')}
-                  >
-                    ✓
-                  </span>
+                {invoice.supplierInfo?.logo ? (
+                  <div className="relative w-24 h-24 md:w-28 md:h-28 rounded-2xl border border-slate-200 bg-white p-2.5 shadow-md ring-1 ring-slate-900/5">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={invoice.supplierInfo.logo}
+                      alt={`${invoice.supplierInfo?.name || 'Supplier'} logo`}
+                      className="w-full h-full object-contain"
+                    />
+                    {invoice.supplierInfo?.isVerified && (
+                      <span
+                        className="absolute -bottom-1.5 -right-1.5 inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-500 text-white text-xs shadow-md ring-2 ring-white"
+                        title={t('invoicePrint.verified')}
+                        aria-label={t('invoicePrint.verified')}
+                      >
+                        ✓
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <div className="relative w-24 h-24 md:w-28 md:h-28 rounded-2xl bg-gradient-to-br from-primary to-primary/70 text-white flex items-center justify-center text-4xl md:text-5xl font-bold shadow-md ring-1 ring-white/20">
+                    {invoice.supplierInfo?.name?.[0]?.toUpperCase() || 'F'}
+                    {invoice.supplierInfo?.isVerified && (
+                      <span
+                        className="absolute -bottom-1.5 -right-1.5 inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-500 text-white text-xs shadow-md ring-2 ring-white"
+                        title={t('invoicePrint.verified')}
+                        aria-label={t('invoicePrint.verified')}
+                      >
+                        ✓
+                      </span>
+                    )}
+                  </div>
                 )}
-                {invoice.supplierInfo?.tier === 'SUPER' && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-gradient-to-r from-amber-400 to-yellow-500 text-white shadow-sm">
-                    ★ {t('invoicePrint.tierSuper')}
-                  </span>
-                )}
-                {invoice.supplierInfo?.tier === 'PRIME' && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-gradient-to-r from-slate-800 to-slate-700 text-white shadow-sm">
-                    ◆ {t('invoicePrint.tierPrime')}
-                  </span>
+              </div>
+
+              <div className="min-w-0">
+                <p className="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-semibold mb-1">
+                  {t('invoicePrint.supplierFallback', 'Supplier')}
+                </p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h1 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight leading-tight">
+                    {invoice.supplierInfo?.name || t('invoicePrint.supplierFallback')}
+                  </h1>
+                  {invoice.supplierInfo?.tier === 'SUPER' && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-gradient-to-r from-amber-400 to-yellow-500 text-white shadow-sm">
+                      ★ {t('invoicePrint.tierSuper')}
+                    </span>
+                  )}
+                  {invoice.supplierInfo?.tier === 'PRIME' && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-gradient-to-r from-slate-800 to-slate-700 text-white shadow-sm">
+                      ◆ {t('invoicePrint.tierPrime')}
+                    </span>
+                  )}
+                </div>
+                {invoice.supplierInfo?.taxId && (
+                  <p className="text-xs text-slate-500 mt-1">
+                    {t('invoicePrint.taxId')}:{' '}
+                    <span className="font-medium text-slate-700 tracking-wide">
+                      {invoice.supplierInfo.taxId}
+                    </span>
+                  </p>
                 )}
               </div>
             </div>
-          </div>
 
-          <div className="text-right shrink-0 ml-auto">
-            <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500 font-semibold">
-              {t('invoicePrint.titleUpper')}
-            </p>
-            <p className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight mt-0.5">
-              {invoice.invoiceNumber}
-            </p>
-            <div className="mt-2">
-              <span
-                className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
-                  STATUS_TONE[isOverdue && invoice.status !== 'PAID' ? 'OVERDUE' : invoice.status] ||
-                  'bg-gray-100 text-gray-700 border-gray-200'
-                }`}
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70" />
-                {isOverdue && invoice.status !== 'PAID'
-                  ? statusLabel('OVERDUE')
-                  : statusLabel(invoice.status)}
-              </span>
+            <div className="text-right shrink-0 ml-auto">
+              <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500 font-semibold">
+                {t('invoicePrint.titleUpper')}
+              </p>
+              <p className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight mt-0.5">
+                {invoice.invoiceNumber}
+              </p>
+              <div className="mt-2">
+                <span
+                  className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
+                    STATUS_TONE[isOverdue && invoice.status !== 'PAID' ? 'OVERDUE' : invoice.status] ||
+                    'bg-gray-100 text-gray-700 border-gray-200'
+                  }`}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70" />
+                  {isOverdue && invoice.status !== 'PAID'
+                    ? statusLabel('OVERDUE')
+                    : statusLabel(invoice.status)}
+                </span>
+              </div>
             </div>
           </div>
         </div>

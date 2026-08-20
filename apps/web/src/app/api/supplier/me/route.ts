@@ -38,6 +38,7 @@ export async function GET() {
         logo: supplier.logo || '',
         slug: supplier.slug,
         isVerified: !!supplier.isVerified,
+        taxId: supplier.taxId || '',
         email: user?.email || '',
         phone: supplier.socialLinks?.phone || '',
         website: supplier.socialLinks?.website || '',

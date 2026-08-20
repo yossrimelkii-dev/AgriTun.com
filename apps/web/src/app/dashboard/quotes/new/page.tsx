@@ -49,6 +49,7 @@ export default function NewQuotePage() {
         name: s.companyName || '',
         address: s.address || '',
         city: s.city || '',
+        taxId: s.taxId || '',
         phone: s.phone || '',
         email: s.email || '',
         logo: s.logo || '',

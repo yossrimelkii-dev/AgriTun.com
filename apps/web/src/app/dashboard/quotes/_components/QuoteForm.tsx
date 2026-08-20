@@ -158,6 +158,7 @@ export default function QuoteForm({
           logo: s.logo || prev.supplierInfo.logo,
           address: s.address || prev.supplierInfo.address,
           city: s.city || prev.supplierInfo.city,
+          taxId: s.taxId || prev.supplierInfo.taxId,
           phone: s.phone || prev.supplierInfo.phone,
           email: s.email || prev.supplierInfo.email,
           website: s.website || prev.supplierInfo.website,

@@ -24,6 +24,7 @@ export interface ISupplier {
   logo?: string;
   banner?: string;
   description?: string;
+  taxId?: string;
   sector: 'MEDICAL' | 'AGRICULTURAL' | 'BOTH';
   isVerified: boolean;
 
@@ -83,6 +84,7 @@ const SupplierSchema = new Schema<ISupplier>(
     logo: String,
     banner: String,
     description: String,
+    taxId: String,
     sector: {
       type: String,
       enum: ['MEDICAL', 'AGRICULTURAL', 'BOTH'],
