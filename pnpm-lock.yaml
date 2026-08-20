@@ -162,6 +162,9 @@ importers:
       bcryptjs:
         specifier: ^2.4.3
         version: 2.4.3
+      cloudinary:
+        specifier: ^2.9.0
+        version: 2.9.0
       mongoose:
         specifier: ^8.8.0
         version: 8.23.0
