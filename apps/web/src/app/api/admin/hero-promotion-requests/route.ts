@@ -5,7 +5,7 @@ import { connectDB } from '@agrimed/db';
 import { HeroPromotionRequest } from '@agrimed/db/models';
 import { requireRole } from '@/lib/auth/session';
 
-export async function GET() {
+export async function GET(): Promise<NextResponse> {
   try {
     await connectDB();
     await requireRole('ADMIN');

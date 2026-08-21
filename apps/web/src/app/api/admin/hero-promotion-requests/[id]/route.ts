@@ -6,7 +6,7 @@ import { connectDB } from '@agrimed/db';
 import { HeroPromotionRequest, HeroSlide } from '@agrimed/db/models';
 import { requireRole } from '@/lib/auth/session';
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> {
   try {
     await connectDB();
     const session = await requireRole('ADMIN');

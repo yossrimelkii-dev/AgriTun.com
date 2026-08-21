@@ -12,7 +12,7 @@ function sanitizeQuestionType(type: string) {
   return ['TEXT', 'TEXTAREA', 'SELECT', 'CHECKBOX'].includes(type) ? type : 'TEXT';
 }
 
-export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> {
   try {
     await connectDB();
     const session = await requireRole(...ALLOWED_ROLES);
@@ -38,7 +38,7 @@ export async function GET(_: NextRequest, { params }: { params: { id: string } }
   }
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> {
   try {
     await connectDB();
     const session = await requireRole(...ALLOWED_ROLES);
@@ -119,7 +119,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 }
 
-export async function DELETE(_: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_: NextRequest, { params }: { params: { id: string } }): Promise<NextResponse> {
   try {
     await connectDB();
     const session = await requireRole(...ALLOWED_ROLES);

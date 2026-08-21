@@ -6,7 +6,7 @@ import { HeroPromotionRequest } from '@agrimed/db/models';
 import { requireSupplier } from '@/lib/auth/session';
 import { serializeKeyValueLines } from '@/lib/key-value-lines';
 
-export async function GET() {
+export async function GET(): Promise<NextResponse> {
   try {
     await connectDB();
     const session = await requireSupplier();
@@ -24,7 +24,7 @@ export async function GET() {
   }
 }
 
-export async function POST(req: NextRequest) {
+export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
     await connectDB();
     const session = await requireSupplier();

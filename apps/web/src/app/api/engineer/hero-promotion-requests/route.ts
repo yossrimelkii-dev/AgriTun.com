@@ -9,7 +9,7 @@ import { requireRole } from '@/lib/auth/session';
 const ALLOWED_ROLES = ['AGRI_ENGINEER', 'TRAINING_CENTER', 'ADMIN'] as const;
 
 // GET — list hero promotion requests submitted by the current specialist/center.
-export async function GET() {
+export async function GET(): Promise<NextResponse> {
   try {
     await connectDB();
     const session = await requireRole(...ALLOWED_ROLES);
@@ -27,7 +27,7 @@ export async function GET() {
 }
 
 // POST — submit a hero-promotion request for a formation or event the user owns.
-export async function POST(req: NextRequest) {
+export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
     await connectDB();
     const session = await requireRole(...ALLOWED_ROLES);
