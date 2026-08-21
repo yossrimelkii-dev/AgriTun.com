@@ -2,11 +2,16 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BarChart3, BookOpen, Calendar, Home } from 'lucide-react';
+import { BookOpen, Calendar, Home } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export function EngineerSidebar() {
+interface EngineerSidebarProps {
+  role?: string;
+}
+
+export function EngineerSidebar({ role }: EngineerSidebarProps) {
   const pathname = usePathname();
+  const isTrainingCenter = role === 'TRAINING_CENTER';
 
   const menuItems = [
     { href: '/engineer/dashboard', label: 'Dashboard', icon: Home },
@@ -17,7 +22,9 @@ export function EngineerSidebar() {
   return (
     <aside className="hidden lg:flex w-64 flex-col border-r bg-background">
       <div className="flex h-16 items-center border-b px-6">
-        <h2 className="text-lg font-semibold">Spécialiste</h2>
+        <h2 className="text-lg font-semibold">
+          {isTrainingCenter ? 'Centre de formation' : 'Spécialiste'}
+        </h2>
       </div>
 
       <nav className="flex-1 space-y-2 p-4">
@@ -41,14 +48,16 @@ export function EngineerSidebar() {
         })}
       </nav>
 
-      <div className="border-t p-4">
-        <Link
-          href="/engineer/profile"
-          className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted transition-colors"
-        >
-          Modifier mon profil
-        </Link>
-      </div>
+      {!isTrainingCenter && (
+        <div className="border-t p-4">
+          <Link
+            href="/engineer/profile"
+            className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted transition-colors"
+          >
+            Modifier mon profil
+          </Link>
+        </div>
+      )}
     </aside>
   );
 }

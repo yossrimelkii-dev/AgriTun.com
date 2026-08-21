@@ -9,7 +9,7 @@ import { requireRole } from '@/lib/auth/session';
 export async function PATCH(req: NextRequest, { params }: { params: { formationId: string; participationId: string } }) {
   try {
     await connectDB();
-    const session = await requireRole('AGRI_ENGINEER', 'ADMIN');
+    const session = await requireRole('AGRI_ENGINEER', 'TRAINING_CENTER', 'ADMIN');
 
     if (!mongoose.isValidObjectId(params.formationId) || !mongoose.isValidObjectId(params.participationId)) {
       return NextResponse.json({ error: 'Invalid id' }, { status: 400 });

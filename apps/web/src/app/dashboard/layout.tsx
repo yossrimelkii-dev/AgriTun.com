@@ -63,6 +63,19 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
   const user: MeUser | null = meData?.user ?? null;
 
+  // The supplier dashboard is for suppliers only. Other authenticated roles
+  // (training centers, engineers) belong in their own spaces.
+  useEffect(() => {
+    if (!user) return;
+    if (user.role === 'TRAINING_CENTER') {
+      router.replace('/engineer/dashboard');
+    } else if (user.role === 'AGRI_ENGINEER') {
+      router.replace('/engineer/dashboard');
+    } else if (user.role === 'ADMIN') {
+      // Admins can visit if they want, no redirect.
+    }
+  }, [user, router]);
+
   const { data: notificationsData } = useQuery({
     queryKey: ['dashboard-notifications', user?.id],
     queryFn: async () => {

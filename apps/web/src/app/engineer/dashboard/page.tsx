@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface EngineerProfileSummary {
   firstName: string;
+  role: string;
   stats: {
     totalHandled: number;
     resolvedCount: number;
@@ -26,6 +27,7 @@ export default function EngineerDashboardPage() {
   });
 
   const profile: EngineerProfileSummary | undefined = profileData?.profile;
+  const isTrainingCenter = profile?.role === 'TRAINING_CENTER';
 
   return (
     <div className="flex-1 p-6 md:p-8 space-y-8">
@@ -34,10 +36,10 @@ export default function EngineerDashboardPage() {
         <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
           <div>
             <p className="text-sm uppercase tracking-wide text-emerald-700 font-medium">
-              Dashboard spécialiste
+              {isTrainingCenter ? 'Espace centre de formation' : 'Dashboard spécialiste'}
             </p>
             <h1 className="mt-1 text-3xl font-bold">
-              Bienvenue{profile ? `, ${profile.firstName}` : ''}
+              Bienvenue{profile?.firstName ? `, ${profile.firstName}` : ''}
             </h1>
             <p className="mt-1 text-muted-foreground">
               Créez vos formations, vos événements et gérez les participations dans un seul espace.
@@ -58,8 +60,8 @@ export default function EngineerDashboardPage() {
         </div>
       </section>
 
-      {/* Stats Cards */}
-      {isLoading ? (
+      {/* Stats Cards — specialist-only (agri-help metrics) */}
+      {!isTrainingCenter && (isLoading ? (
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="h-24 rounded-2xl bg-muted animate-pulse" />
@@ -96,10 +98,10 @@ export default function EngineerDashboardPage() {
             </CardContent>
           </Card>
         </section>
-      )}
+      ))}
 
       {/* Quick Links */}
-      <section className="grid gap-4 md:grid-cols-3">
+      <section className={`grid gap-4 ${isTrainingCenter ? 'md:grid-cols-2' : 'md:grid-cols-3'}`}>
         <Card className="border-2 border-dashed hover:border-primary transition-colors">
           <CardHeader>
             <CardTitle className="text-base">Mes formations</CardTitle>
@@ -132,21 +134,23 @@ export default function EngineerDashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-2 border-dashed hover:border-primary transition-colors">
-          <CardHeader>
-            <CardTitle className="text-base">Mon profil</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground mb-4">
-              Modifiez vos informations personnelles
-            </p>
-            <Button asChild variant="outline" className="w-full">
-              <Link href="/engineer/profile">
-                Modifier mon profil
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
+        {!isTrainingCenter && (
+          <Card className="border-2 border-dashed hover:border-primary transition-colors">
+            <CardHeader>
+              <CardTitle className="text-base">Mon profil</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground mb-4">
+                Modifiez vos informations personnelles
+              </p>
+              <Button asChild variant="outline" className="w-full">
+                <Link href="/engineer/profile">
+                  Modifier mon profil
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+        )}
       </section>
     </div>
   );

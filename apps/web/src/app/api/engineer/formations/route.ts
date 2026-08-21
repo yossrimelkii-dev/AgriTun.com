@@ -8,7 +8,7 @@ import { requireRole } from '@/lib/auth/session';
 export async function GET() {
   try {
     await connectDB();
-    const session = await requireRole('AGRI_ENGINEER', 'ADMIN');
+    const session = await requireRole('AGRI_ENGINEER', 'TRAINING_CENTER', 'ADMIN');
 
     const formations = await Formation.find({ specialistId: session.userId })
       .sort({ createdAt: -1 })
@@ -70,7 +70,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     await connectDB();
-    const session = await requireRole('AGRI_ENGINEER', 'ADMIN');
+    const session = await requireRole('AGRI_ENGINEER', 'TRAINING_CENTER', 'ADMIN');
 
     const body = await req.json();
     const title = String(body?.title ?? '').trim();

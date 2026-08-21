@@ -32,7 +32,7 @@ type EngineerRecord = {
 };
 
 function isEngineerRole(role: unknown) {
-  return role === 'AGRI_ENGINEER' || role === 'ADMIN';
+  return role === 'AGRI_ENGINEER' || role === 'TRAINING_CENTER' || role === 'ADMIN';
 }
 
 async function buildProfilePayload(userId: string) {

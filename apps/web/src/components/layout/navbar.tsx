@@ -107,7 +107,8 @@ export function Navbar() {
 
   const dashboardLink =
     user?.role === 'ADMIN' ? '/admin' :
-    user?.role === 'SUPPLIER' || user?.role === 'SUPPLIER_PRIME' || user?.role === 'SUPER_SUPPLIER' || user?.role === 'TRAINING_CENTER' ? '/dashboard/overview' :
+    user?.role === 'SUPPLIER' || user?.role === 'SUPPLIER_PRIME' || user?.role === 'SUPER_SUPPLIER' ? '/dashboard/overview' :
+    user?.role === 'TRAINING_CENTER' ? '/engineer/dashboard' :
     user?.role === 'AGRI_ENGINEER' ? '/engineer/profile' :
     '/account';
 
@@ -588,8 +589,10 @@ export function Navbar() {
                       )}
                       {user.role === 'AGRI_ENGINEER'
                         ? t('navbar.engineerProfile')
-                        : user.role === 'SUPPLIER' || user.role === 'SUPPLIER_PRIME' || user.role === 'SUPER_SUPPLIER' || user.role === 'TRAINING_CENTER'
+                        : user.role === 'SUPPLIER' || user.role === 'SUPPLIER_PRIME' || user.role === 'SUPER_SUPPLIER'
                         ? 'Dashboard'
+                        : user.role === 'TRAINING_CENTER'
+                        ? 'Espace formation'
                         : t('navbar.myAccount')}
                     </span>
                   </Link>
@@ -694,8 +697,10 @@ export function Navbar() {
                         <LayoutDashboard className="mr-2 h-4 w-4" />
                         {user.role === 'AGRI_ENGINEER'
                           ? t('navbar.engineerProfile')
-                          : user.role === 'SUPPLIER' || user.role === 'SUPPLIER_PRIME' || user.role === 'SUPER_SUPPLIER' || user.role === 'TRAINING_CENTER'
+                          : user.role === 'SUPPLIER' || user.role === 'SUPPLIER_PRIME' || user.role === 'SUPER_SUPPLIER'
                           ? 'Dashboard'
+                          : user.role === 'TRAINING_CENTER'
+                          ? 'Espace formation'
                           : t('navbar.myAccount')}
                       </Link>
                     </Button>

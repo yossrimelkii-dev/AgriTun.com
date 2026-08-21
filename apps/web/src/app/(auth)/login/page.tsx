@@ -51,6 +51,8 @@ export default function LoginPage() {
         router.push(result.user.supplierId ? '/dashboard/overview' : '/dashboard/onboarding');
       } else if (result.user.role === 'AGRI_ENGINEER') {
         router.push('/engineer/profile');
+      } else if (result.user.role === 'TRAINING_CENTER') {
+        router.push('/engineer/dashboard');
       } else if (result.user.role === 'ADMIN') {
         router.push('/admin');
       } else {
