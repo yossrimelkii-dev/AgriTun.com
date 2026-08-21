@@ -1,14 +1,15 @@
 'use client';
 
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Edit2, Save, X } from 'lucide-react';
+import { ArrowLeft, Edit2, Megaphone, Save, Trash2, X } from 'lucide-react';
 import { useState } from 'react';
+import { HeroPromotionRequestDialog } from '@/components/promotions/hero-promotion-request-dialog';
 
 interface EngineerEvent {
   _id: string;
@@ -31,10 +32,12 @@ interface EventParticipant {
 
 export default function EventDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<Partial<EngineerEvent>>({});
+  const [promoOpen, setPromoOpen] = useState(false);
 
   const { data: eventData, isLoading } = useQuery({
     queryKey: ['engineer-event', params.id],
@@ -98,6 +101,35 @@ export default function EventDetailPage() {
     });
   };
 
+  const deleteEventMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/engineer/events/${params.id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json?.error || 'Suppression échouée');
+      }
+      return res.json();
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['engineer-events'] });
+      toast({ title: 'Événement supprimé' });
+      router.push('/engineer/dashboard/events');
+    },
+    onError: (err: any) => {
+      toast({ title: 'Erreur', description: err?.message });
+    },
+  });
+
+  const confirmAndDelete = () => {
+    if (typeof window !== 'undefined') {
+      const ok = window.confirm(
+        'Supprimer cet événement ? Toutes les participations associées seront également supprimées. Cette action est irréversible.'
+      );
+      if (!ok) return;
+    }
+    deleteEventMutation.mutate();
+  };
+
   const reviewParticipationMutation = useMutation({
     mutationFn: async ({ participationId, status }: { participationId: string; status: 'ACCEPTED' | 'REJECTED' }) => {
       const res = await fetch(`/api/engineer/events/${params.id}/participants/${participationId}`, {
@@ -141,7 +173,7 @@ export default function EventDetailPage() {
   return (
     <div className="flex-1 p-6 md:p-8 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         <Button asChild variant="ghost" size="sm">
           <Link href="/engineer/dashboard/events">
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -149,10 +181,24 @@ export default function EventDetailPage() {
           </Link>
         </Button>
         {!isEditing && (
-          <Button onClick={startEditing}>
-            <Edit2 className="h-4 w-4 mr-2" />
-            Éditer
-          </Button>
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" onClick={() => setPromoOpen(true)}>
+              <Megaphone className="h-4 w-4 mr-2" />
+              Demander la mise en avant
+            </Button>
+            <Button onClick={startEditing}>
+              <Edit2 className="h-4 w-4 mr-2" />
+              Éditer
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmAndDelete}
+              disabled={deleteEventMutation.isPending}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              {deleteEventMutation.isPending ? 'Suppression...' : 'Supprimer'}
+            </Button>
+          </div>
         )}
         {isEditing && (
           <div className="flex gap-2">
@@ -171,6 +217,19 @@ export default function EventDetailPage() {
           </div>
         )}
       </div>
+
+      <HeroPromotionRequestDialog
+        open={promoOpen}
+        onOpenChange={setPromoOpen}
+        subject={{
+          kind: 'EVENT',
+          id: String(params.id),
+          title: eventData.title,
+          description: eventData.description,
+          imageUrl: eventData.imageUrl,
+          date: eventData.eventDate,
+        }}
+      />
 
       {/* Cover Image */}
       {eventData.imageUrl && (
@@ -284,12 +343,19 @@ export default function EventDetailPage() {
           )}
 
           {/* Participants Section */}
-          {!isEditing && (participantsData || []).length > 0 && (
+          {!isEditing && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Participations ({(participantsData || []).length})</CardTitle>
+                <CardTitle className="text-lg">
+                  Participations ({(participantsData || []).length})
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
+                {(participantsData || []).length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    Aucun participant pour le moment.
+                  </p>
+                )}
                 {(participantsData || []).map((participant: EventParticipant) => (
                   <div
                     key={participant.id}

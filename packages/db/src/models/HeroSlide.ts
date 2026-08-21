@@ -3,7 +3,7 @@ import mongoose, { Schema } from 'mongoose';
 export interface IHeroSlide {
   title: string;
   description?: string;
-  kind: 'PRODUCT' | 'EVENT';
+  kind: 'PRODUCT' | 'EVENT' | 'FORMATION';
   imageUrl?: string;
   ctaLabel: string;
   linkUrl: string;
@@ -23,7 +23,7 @@ const HeroSlideSchema = new Schema<IHeroSlide>(
     description: String,
     kind: {
       type: String,
-      enum: ['PRODUCT', 'EVENT'],
+      enum: ['PRODUCT', 'EVENT', 'FORMATION'],
       default: 'PRODUCT',
     },
     imageUrl: String,

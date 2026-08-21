@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -17,9 +17,14 @@ import { BrandLogo } from '@/components/layout/brand-logo';
 export default function LoginPage() {
   const { t } = useI18n();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Only accept in-app paths to prevent open-redirect abuse.
+  const rawNext = searchParams.get('next');
+  const next = rawNext && rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : null;
 
   const { register, handleSubmit, formState: { errors } } = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
@@ -46,8 +51,10 @@ export default function LoginPage() {
       // Refresh navbar auth state
       queryClient.invalidateQueries({ queryKey: ['auth-me'] });
 
-      // Redirect based on role
-      if (result.user.role === 'SUPPLIER') {
+      // Honor the ?next= return URL when the user was redirected mid-flow.
+      if (next) {
+        router.push(next);
+      } else if (result.user.role === 'SUPPLIER') {
         router.push(result.user.supplierId ? '/dashboard/overview' : '/dashboard/onboarding');
       } else if (result.user.role === 'AGRI_ENGINEER') {
         router.push('/engineer/profile');

@@ -44,12 +44,16 @@ export async function middleware(req: NextRequest) {
     }
   }
 
-  // Protect engineer routes
+  // Protect engineer routes — shared by AGRI_ENGINEER, TRAINING_CENTER and ADMIN.
   if (engineerRoutes.some((r) => pathname.startsWith(r))) {
     if (!payload) {
       return NextResponse.redirect(new URL('/login', req.url));
     }
-    if (payload.role !== 'AGRI_ENGINEER' && payload.role !== 'ADMIN') {
+    if (
+      payload.role !== 'AGRI_ENGINEER' &&
+      payload.role !== 'TRAINING_CENTER' &&
+      payload.role !== 'ADMIN'
+    ) {
       return NextResponse.redirect(new URL('/', req.url));
     }
   }
@@ -57,6 +61,13 @@ export async function middleware(req: NextRequest) {
   // Protect account routes
   if (pathname.startsWith('/account') && !payload) {
     return NextResponse.redirect(new URL('/login', req.url));
+  }
+
+  // Protect /messages — any authenticated user can chat.
+  if (pathname.startsWith('/messages') && !payload) {
+    const loginUrl = new URL('/login', req.url);
+    loginUrl.searchParams.set('next', pathname + (req.nextUrl.search || ''));
+    return NextResponse.redirect(loginUrl);
   }
 
   // Protect checkout
@@ -73,6 +84,7 @@ export const config = {
     '/admin/:path*',
     '/engineer/:path*',
     '/account/:path*',
+    '/messages/:path*',
     '/cart/checkout',
     '/login',
     '/register',

@@ -320,6 +320,11 @@ export default function FormationsPage() {
                       </span>
                       <span className="rounded-full bg-muted px-2.5 py-1">{formation.location || 'Sans lieu'}</span>
                     </div>
+                    <Button asChild size="sm" variant="outline">
+                      <Link href={`/engineer/dashboard/formations/${formation._id}`}>
+                        Voir les détails
+                      </Link>
+                    </Button>
 
                     {requests.length > 0 && (
                       <div className="space-y-3 border-t pt-4">

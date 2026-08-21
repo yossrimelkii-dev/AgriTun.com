@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BookOpen, Calendar, Home } from 'lucide-react';
+import { BookOpen, Calendar, Home, MessageCircle, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface EngineerSidebarProps {
@@ -17,6 +17,8 @@ export function EngineerSidebar({ role }: EngineerSidebarProps) {
     { href: '/engineer/dashboard', label: 'Dashboard', icon: Home },
     { href: '/engineer/dashboard/formations', label: 'Formations', icon: BookOpen },
     { href: '/engineer/dashboard/events', label: 'Événements', icon: Calendar },
+    { href: '/messages', label: 'Messages', icon: MessageCircle },
+    { href: '/engineer/dashboard/settings', label: 'Paramètres', icon: Settings },
   ];
 
   return (
@@ -54,7 +56,7 @@ export function EngineerSidebar({ role }: EngineerSidebarProps) {
             href="/engineer/profile"
             className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted transition-colors"
           >
-            Modifier mon profil
+            Modifier mon profil (spécialiste)
           </Link>
         </div>
       )}

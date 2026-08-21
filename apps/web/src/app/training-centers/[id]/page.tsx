@@ -220,6 +220,11 @@ export default function TrainingCenterProfilePage() {
 
                 <div className="flex flex-wrap gap-3">
                   <Button asChild>
+                    <Link href={`/messages?to=${center.id}`}>
+                      Contacter ce centre
+                    </Link>
+                  </Button>
+                  <Button asChild variant="outline">
                     <Link href="#formations">Voir les formations</Link>
                   </Button>
                   {center.profile?.cvUrl ? (

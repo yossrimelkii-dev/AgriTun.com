@@ -9,6 +9,7 @@ type SpecialistProfileFields = {
   firstName?: string;
   lastName?: string;
   phone?: string;
+  companyName?: string;
   country?: string;
   city?: string;
   avatarUrl?: string;
@@ -133,6 +134,7 @@ export async function GET() {
         firstName: profile.firstName ?? '',
         lastName: profile.lastName ?? '',
         phone: profile.phone ?? '',
+        companyName: profile.companyName ?? '',
         city: profile.city ?? '',
         country: profile.country ?? '',
         avatarUrl: profile.avatarUrl ?? '',
@@ -160,7 +162,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     const body = await req.json();
-    const allowedFields = ['firstName', 'lastName', 'phone', 'city', 'country', 'avatarUrl', 'bio', 'speciality', 'workSummary', 'cvUrl'];
+    const allowedFields = ['firstName', 'lastName', 'phone', 'companyName', 'city', 'country', 'avatarUrl', 'bio', 'speciality', 'workSummary', 'cvUrl'];
     const updates: Record<string, any> = {};
 
     for (const key of allowedFields) {
@@ -212,6 +214,7 @@ export async function PATCH(req: NextRequest) {
         firstName: profile.firstName ?? '',
         lastName: profile.lastName ?? '',
         phone: profile.phone ?? '',
+        companyName: profile.companyName ?? '',
         city: profile.city ?? '',
         country: profile.country ?? '',
         avatarUrl: profile.avatarUrl ?? '',

@@ -101,7 +101,7 @@ export default function EngineerDashboardPage() {
       ))}
 
       {/* Quick Links */}
-      <section className={`grid gap-4 ${isTrainingCenter ? 'md:grid-cols-2' : 'md:grid-cols-3'}`}>
+      <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="border-2 border-dashed hover:border-primary transition-colors">
           <CardHeader>
             <CardTitle className="text-base">Mes formations</CardTitle>
@@ -134,23 +134,41 @@ export default function EngineerDashboardPage() {
           </CardContent>
         </Card>
 
-        {!isTrainingCenter && (
-          <Card className="border-2 border-dashed hover:border-primary transition-colors">
-            <CardHeader>
-              <CardTitle className="text-base">Mon profil</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground mb-4">
-                Modifiez vos informations personnelles
-              </p>
-              <Button asChild variant="outline" className="w-full">
-                <Link href="/engineer/profile">
-                  Modifier mon profil
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
-        )}
+        <Card className="border-2 border-dashed hover:border-primary transition-colors">
+          <CardHeader>
+            <CardTitle className="text-base">Messages</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4">
+              Discutez avec les participants
+            </p>
+            <Button asChild variant="outline" className="w-full">
+              <Link href="/messages">
+                Ouvrir la messagerie
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="border-2 border-dashed hover:border-primary transition-colors">
+          <CardHeader>
+            <CardTitle className="text-base">Paramètres</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4">
+              {isTrainingCenter
+                ? 'Nom, logo, coordonnées de votre centre'
+                : 'Vos informations personnelles'}
+            </p>
+            <Button asChild variant="outline" className="w-full">
+              <Link
+                href={isTrainingCenter ? '/engineer/dashboard/settings' : '/engineer/profile'}
+              >
+                Modifier
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
       </section>
     </div>
   );
