@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@agrimed/db';
 import { Event, Supplier } from '@agrimed/db/models';
-import { requireSupplierPrimeOrSuper } from '@/lib/auth/session';
+import { requireSupplier } from '@/lib/auth/session';
 
 function sanitizeQuestionType(type: string) {
   return ['TEXT', 'TEXTAREA', 'SELECT', 'CHECKBOX'].includes(type) ? type : 'TEXT';
@@ -13,7 +13,7 @@ function sanitizeQuestionType(type: string) {
 export async function GET() {
   try {
     await connectDB();
-    const session = await requireSupplierPrimeOrSuper();
+    const session = await requireSupplier();
 
     const events = await Event.find({ supplierId: session.supplierId }).sort({ createdAt: -1 }).lean();
     return NextResponse.json({ events });
@@ -29,7 +29,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     await connectDB();
-    const session = await requireSupplierPrimeOrSuper();
+    const session = await requireSupplier();
     const body = await req.json();
 
     const title = String(body?.title ?? '').trim();

@@ -89,7 +89,10 @@ export default function DashboardEventsPage() {
     staleTime: 60000,
   });
   const currentRole = meData?.user?.role;
-  const canAccessEvents = currentRole === 'SUPPLIER_PRIME' || currentRole === 'SUPER_SUPPLIER';
+  const canAccessEvents =
+    currentRole === 'SUPPLIER' ||
+    currentRole === 'SUPPLIER_PRIME' ||
+    currentRole === 'SUPER_SUPPLIER';
 
   const { data, isLoading } = useQuery({
     queryKey: ['dashboard-events'],
@@ -338,7 +341,7 @@ export default function DashboardEventsPage() {
       {!canAccessEvents && (
         <div className="rounded-lg border border-orange-200 bg-orange-50 p-4 text-orange-800">
           <p className="font-medium">Accès restreint</p>
-          <p className="text-sm mt-1">Only Supplier Prime and Super Suppliers can create and manage events.</p>
+          <p className="text-sm mt-1">Vous devez avoir un compte fournisseur pour gérer des événements.</p>
         </div>
       )}
 

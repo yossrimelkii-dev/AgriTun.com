@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 import { connectDB } from '@agrimed/db';
 import { Event, EventParticipation } from '@agrimed/db/models';
-import { requireSupplierPrimeOrSuper } from '@/lib/auth/session';
+import { requireSupplier } from '@/lib/auth/session';
 
 function sanitizeQuestionType(type: string) {
   return ['TEXT', 'TEXTAREA', 'SELECT', 'CHECKBOX'].includes(type) ? type : 'TEXT';
@@ -16,7 +16,7 @@ export async function GET(
 ): Promise<NextResponse> {
   try {
     await connectDB();
-    const session = await requireSupplierPrimeOrSuper();
+    const session = await requireSupplier();
 
     if (!mongoose.isValidObjectId(params.id)) {
       return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
@@ -42,7 +42,7 @@ export async function PATCH(
 ): Promise<NextResponse> {
   try {
     await connectDB();
-    const session = await requireSupplierPrimeOrSuper();
+    const session = await requireSupplier();
 
     if (!mongoose.isValidObjectId(params.id)) {
       return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
@@ -124,7 +124,7 @@ export async function DELETE(
 ): Promise<NextResponse> {
   try {
     await connectDB();
-    const session = await requireSupplierPrimeOrSuper();
+    const session = await requireSupplier();
 
     if (!mongoose.isValidObjectId(params.id)) {
       return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
