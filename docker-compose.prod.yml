@@ -43,6 +43,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        # NEXT_PUBLIC_* must be passed at build time so Next.js can inline
+        # them into the client bundle. Compose reads this from the --env-file
+        # passed to `docker compose build` (see scripts/deploy.sh).
+        NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}
     image: tunagri-web:latest
     container_name: tunagri-web
     restart: unless-stopped
