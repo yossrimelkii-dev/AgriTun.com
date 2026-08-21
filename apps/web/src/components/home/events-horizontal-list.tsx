@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -66,12 +65,11 @@ export function EventsHorizontalList() {
                   <Link href={`/events/${event._id}`} className="block">
                     <div className="relative h-40 overflow-hidden bg-muted">
                       {event.imageUrl ? (
-                        <Image
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
                           src={event.imageUrl}
                           alt={event.title}
-                          fill
-                          sizes="(min-width: 1280px) 25vw, (min-width: 768px) 50vw, 100vw"
-                          className="object-cover transition-transform duration-500 group-hover:scale-105"
+                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                         />
                       ) : (
                         <div className="h-full w-full bg-gradient-to-br from-primary/25 via-primary/10 to-emerald-400/20" />

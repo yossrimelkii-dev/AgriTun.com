@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Edit2, Megaphone, Save, Trash2, X } from 'lucide-react';
 import { useState } from 'react';
 import { HeroPromotionRequestDialog } from '@/components/promotions/hero-promotion-request-dialog';
+import { ImageUploadField } from '@/components/ui/image-upload-field';
 
 interface EngineerEvent {
   _id: string;
@@ -72,7 +73,13 @@ export default function EventDetailPage() {
       return res.json();
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['engineer-events'] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['engineer-events'] }),
+        queryClient.invalidateQueries({ queryKey: ['engineer-event', params.id] }),
+        queryClient.invalidateQueries({ queryKey: ['engineer-event-participants', params.id] }),
+        queryClient.invalidateQueries({ queryKey: ['home-events-latest'] }),
+        queryClient.invalidateQueries({ queryKey: ['public-events-list'] }),
+      ]);
       setIsEditing(false);
       toast({ title: 'Événement mis à jour avec succès!' });
     },
@@ -288,14 +295,13 @@ export default function EventDetailPage() {
                   />
                 </div>
 
-                <div>
-                  <label className="text-sm font-medium">Image URL</label>
-                  <Input
-                    value={editData.imageUrl ?? ''}
-                    onChange={(e) => setEditData((prev) => ({ ...prev, imageUrl: e.target.value }))}
-                    className="mt-1"
-                  />
-                </div>
+                <ImageUploadField
+                  label="Image de couverture"
+                  value={editData.imageUrl ?? ''}
+                  onChange={(url) => setEditData((prev) => ({ ...prev, imageUrl: url }))}
+                  aspectRatio="wide"
+                />
+
 
                 <div className="flex items-center gap-2">
                   <input

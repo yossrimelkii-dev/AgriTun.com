@@ -1,9 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
 import { useQuery } from '@tanstack/react-query';
-import { CalendarDays } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 
@@ -67,12 +65,11 @@ export function FormationsHorizontalList() {
                   <Link href={`/formations/${formation._id}`} className="block">
                     <div className="relative h-40 overflow-hidden bg-muted">
                       {formation.imageUrl ? (
-                        <Image
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
                           src={formation.imageUrl}
                           alt={formation.title}
-                          fill
-                          sizes="(min-width: 1280px) 25vw, (min-width: 768px) 50vw, 100vw"
-                          className="object-cover transition-transform duration-500 group-hover:scale-105"
+                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                         />
                       ) : (
                         <div className="h-full w-full bg-gradient-to-br from-emerald-500/25 via-primary/10 to-lime-400/20" />
